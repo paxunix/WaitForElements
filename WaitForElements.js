@@ -1,14 +1,3 @@
-/*
-await WaitForElements.match({
-    selectors: [ "p" ],
-    target: document.body,
-    timeout: -1,
-    // visible: false,
-    filter: els => els.filter(el => el.textContent.includes("blah")),
-    //attributeFilter: [ "blah" ]
-})
-*/
-
 "use strict";
 
 class WaitForElements
@@ -96,49 +85,6 @@ class WaitForElements
     }
 
 
-    /**
-     * Return a promise to wait for elements to show up in the DOM for which
-     * particular constraints are true.  The mutation observer used will
-     * fire for added nodes, attribute changes, and text changes.  The
-     * promise will resolve with the set of elements matching the selector
-     * under the target for which any filtering is true.
-     *
-     * @param {options.selectors} - Array of CSS selectors to wait for
-     * appearance in the DOM.  If no elements match within the timeout, the
-     * promise is rejected.
-     *
-     * @param {options.target} - target DOM element to watch (including its
-     * children).  Default=document.body.
-     *
-     * @param {options.timeout} - the promise is rejected if no elements
-     * match within this many milliseconds.  If -1, wait for as long as the
-     * document is alive.  Default=2000.
-     *
-     * @param {options.visible} - the set of elements matching the selectors
-     * is filtered only to those that are visible.  NOTE!!  visible does NOT
-     * mean strictly in the viewport--it means that the element is not
-     * hidden in the DOM (for example, this will not detect if an element
-     * scrolls into view).  Default=undef/null (no visibility filtering is
-     * done).  If set to "all", all elements in the set must be visible (or
-     * the returned set will be empty).  For all other truthy values, one or
-     * more elements must be visible (or the returned set will be empty).
-     *
-     * @param {options.filter} - function that takes a list of elements that
-     * match the selectors and returns a new list of elements.  If this list
-     * of elements is empty, waiting continues (timeout permitting).
-     * Otherwise, the promise is resolved with the filtered list of
-     * unique elements.  Default = no-op.  If options.visible is
-     * non-nullish, its associated behaviour is applied before this
-     * filtering.
-     *
-     * @param {options.attributeFilter} - array used to set the
-     * attributeFilter option for the mutation observer.  Useful only if
-     * filtering on attributes.  Default = undef.
-     *
-     * @returns {Promise} - resolve to the matched (possibly visible)
-     * elements; rejects on error or failure to find any elements within
-     * timeout.
-     */
     static match(options)
     {
         return new Promise((resolve, reject) => {
