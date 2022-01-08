@@ -2,6 +2,9 @@
 
 Basic promise-based mechanism to wait for elements meeting constraints to appear in the DOM.
 
+Does NOT support waiting for elements to be removed from the DOM.
+
+
 ## API
 
 #### WaitForElements.match(options)
