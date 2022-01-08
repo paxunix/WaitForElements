@@ -40,4 +40,8 @@ Default = no-op (no filtering).  Function that takes an array of elements that m
 
 ##### options.attributeFilter
 
-Default = `undef`.  Array used to set the `attributeFilter` option for the mutation observer.  It represents the names of attributes for which matching should be considered (since attribute updates may be many and expensive).
+Default = `undef`.  Array used to set the `attributeFilter` option for the mutation observer.  It contains the names of attributes for which matching should be considered (since attribute updates may be many and expensive).  Ignored if `observerOptions` is given.
+
+##### options.observerOptions
+
+Optional.  Default is to observe all child nodes, subtrees, attributes, and character data beneath `target`.  If given, must conform to the `MutationObserver.observe()` API.

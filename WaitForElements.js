@@ -151,17 +151,25 @@ class WaitForElements
                 }
             });
 
-            let opts = {
-                attributeOldValue: true,
-                attributes: true,
-                characterDataOldValue: true,
-                characterData: true,
-                childList: true,
-                subtree: true,
-            };
+            let opts = null;
+            if (options.observerOptions)
+            {
+                opts = Object.create(options.observerOptions);
+            }
+            else
+            {
+                opts = {
+                    attributeOldValue: true,
+                    attributes: true,
+                    characterDataOldValue: true,
+                    characterData: true,
+                    childList: true,
+                    subtree: true,
+                };
 
-            if (options.attributeFilter ?? false)
-                opts.attributeFilter = options.attributeFilter;
+                if (options.attributeFilter)
+                    opts.attributeFilter = options.attributeFilter;
+            }
 
             observer.observe(rootEl, opts);
 
