@@ -47,7 +47,7 @@ class WaitForElements
     }
 
 
-    static _filterVisible(els, visibility)
+    static filterVisible(els, visibility)
     {
         if (visibility ?? false)
         {
