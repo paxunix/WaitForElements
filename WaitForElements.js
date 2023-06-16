@@ -203,5 +203,131 @@ class WaitForElements
             }, timeout);
         });
     }
+
+
+    static matchOngoing(options, onMatchFn, onTimeoutFn = null)
+    {
+        let rootEl = options.target || document.body;
+
+        if (options.verbose)
+        {
+            console.log("matchOngoing(), waiting for selectors:", options.selectors);
+        }
+
+        if (!options.skipExisting)
+        {
+            // Check for element in case it already exists
+            let matchEls = WaitForElements.
+                _querySelectors(rootEl, options.selectors);
+
+            if (options.filter)
+            {
+                matchEls = options.filter(matchEls, null);
+            }
+
+            if (matchEls.length !== 0)
+            {
+                let els = [... new Set(matchEls)];
+                if (options.verbose)
+                {
+                    console.log("matchOngoing(), found existing:", els);
+                }
+
+                onMatchFn(els);
+            }
+        }
+
+        // Regardless of existing elements, observe for added/updated
+        // elements.
+        let timerId = null;
+        let observer = null;
+        observer = new MutationObserver(mutations => {
+            // Handling characterData is special, because the target is
+            // the text node itself.  We have to search up the parent
+            // element hierarchy to the root element, matching those
+            // elements against the selectors, and including any matched
+            // nodes in the set that are affected by the characterData
+            // change (because the text content change applies to all of
+            // them, even if the observer only fires it for the affected
+            // text node).
+            let checkEls = [ ... new Set(mutations.map(m => [
+                m.type === "childList" ? Array.from(m.addedNodes) : [],
+                m.type === "attributes" ? m.target : [],
+                m.type === "characterData" ? WaitForElements._getMatchedParents(m.target.parentElement, options.target, options.selectors) : [],
+            ]).flat(Infinity)) ];
+
+            // Evaluate selectors against any of the added nodes to get
+            // added (and nested) elements that match.
+            let matchEls = [ ... new Set(checkEls.map(el => {
+                let newEls = [];
+
+                WaitForElements._querySelectors(el, options.selectors).forEach(j => { if (!j.__WaitForElements_seen) { newEls.push(j); j.__WaitForElements_seen = 1; } });
+
+                return newEls;
+            }).flat(Infinity)) ];
+
+            if (options.filter)
+            {
+                matchEls = options.filter(matchEls);
+            }
+
+            if (matchEls.length !== 0)
+            {
+                if (options.verbose)
+                {
+                    console.log("matchOngoing, mutations:", mutations);
+                    console.log("matchOngoing, matched in mutations:", matchEls);
+                }
+
+                if (timerId)
+                {
+                    clearTimeout(timerId);
+
+                    if (observer)
+                        observer.disconnect();
+                }
+
+                onMatchFn([... new Set(matchEls)]);
+            }
+        });
+
+        let opts = null;
+        if (options.observerOptions)
+        {
+            opts = Object.create(options.observerOptions);
+        }
+        else
+        {
+            opts = {
+                attributeOldValue: true,
+                attributes: true,
+                characterDataOldValue: true,
+                characterData: true,
+                childList: true,
+                subtree: true,
+            };
+
+            if (options.attributeFilter)
+                opts.attributeFilter = options.attributeFilter;
+        }
+
+        observer.observe(rootEl, opts);
+
+        let timeout = options.timeout ?? -1;
+        if (timeout === -1)
+            return;
+
+        timerId = window.setTimeout(() => {
+            observer.disconnect();
+
+            if (onTimeoutFn !== null)
+            {
+                onTimeoutFn({
+                    message: new Error(`Failed to find elements matching ${options.selectors} within ${timeout} milliseconds`),
+                    options: options,
+                });
+            }
+        }, timeout);
+    }
 }
 

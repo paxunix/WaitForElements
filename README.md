@@ -53,3 +53,24 @@ Default = `undef`.  Array used to set the `attributeFilter` option for the mutat
 ##### options.observerOptions
 
 Optional.  Default is to observe all child nodes, subtrees, attributes, and character data beneath `target`.  If given, must conform to the `MutationObserver.observe()` API.
+
+
+#### WaitForElements.matchOngoing(options, onMatchFn, onTimeoutFn)
+
+#### Return
+
+undef
+
+#### Parameters
+
+`options` is mostly the same as for `WaitForElements.match()`.  Differences:
+
+* `options.timeout` default is -1 (no timeout).
+
+##### onMatchFn
+
+Reference to a function that is called when elements are matched.  Its parameter is an array of matched DOM elements.
+
+##### onTimeoutFn
+
+Reference to a function that is called if `options.timeout` is reached before any elements are matched.  Its parameter is an object with a `message` field containing an error message, and an `options` field that is the options passed to `WaitForElements.matchOngoing()`.
