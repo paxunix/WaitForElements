@@ -29,6 +29,11 @@ Array of CSS selectors to wait for appearance in the DOM.  If no elements match 
 
 Default=`document.body`.  Target DOM element to watch, including its children.
 
+##### options.skipExisting
+
+Default=`false`.  If true, elements already in the DOM when match() is
+called will be ignored.
+
 ##### options.timeout
 
 Default=`2000`.  The promise is rejected if no elements match within this many milliseconds after the promise is created.  If -1, wait for as long as the document is alive.

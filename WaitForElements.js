@@ -90,21 +90,24 @@ class WaitForElements
         return new Promise((resolve, reject) => {
             let rootEl = options.target || document.body;
 
-            // Check for element in case it already exists
-            let existingEls = WaitForElements.
-                _querySelectors(rootEl, options.selectors);
-
-            let matchEls = WaitForElements._filterVisible(existingEls, options.visible);
-
-            if (options.filter)
+            if (!options.skipExisting)
             {
-                matchEls = options.filter(matchEls, null);
-            }
+                // Check for element in case it already exists
+                let existingEls = WaitForElements.
+                    _querySelectors(rootEl, options.selectors);
 
-            if (matchEls.length !== 0)
-            {
-                resolve([... new Set(matchEls)]);
-                return;
+                let matchEls = WaitForElements._filterVisible(existingEls, options.visible);
+
+                if (options.filter)
+                {
+                    matchEls = options.filter(matchEls, null);
+                }
+
+                if (matchEls.length !== 0)
+                {
+                    resolve([... new Set(matchEls)]);
+                    return;
+                }
             }
 
             // No existing matching elements, so observe for added/updated
