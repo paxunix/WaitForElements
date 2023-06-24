@@ -90,6 +90,11 @@ class WaitForElements
         return new Promise((resolve, reject) => {
             let rootEl = options.target || document.body;
 
+			if (options.verbose)
+			{
+				console.log("match(), waiting for selectors:", options.selectors);
+			}
+
             if (!options.skipExisting)
             {
                 // Check for element in case it already exists
@@ -105,6 +110,11 @@ class WaitForElements
 
                 if (matchEls.length !== 0)
                 {
+					if (options.verbose)
+					{
+						console.log("match(), found existing:", matchEls);
+					}
+
                     resolve([... new Set(matchEls)]);
                     return;
                 }
@@ -143,6 +153,12 @@ class WaitForElements
 
                 if (matchEls.length !== 0)
                 {
+					if (options.verbose)
+					{
+						console.log("match(), mutations:", mutations);
+						console.log("match(), matched in mutations:", matchEls);
+					}
+
                     if (observer)
                         observer.disconnect();
 
