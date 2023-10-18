@@ -85,15 +85,24 @@ class WaitForElements
     }
 
 
+    static _normalizeOptions(options)
+    {
+        options.target = options.target ?? document.body;
+        options.filter = options.filter ?? (() => true);
+    }
+
+
     static match(options)
     {
-        return new Promise((resolve, reject) => {
-            let rootEl = options.target || document.body;
+        _normalizeOptions(options);
 
-			if (options.verbose)
-			{
-				console.log("match(), waiting for selectors:", options.selectors);
-			}
+        return new Promise((resolve, reject) => {
+            let rootEl = options.target;
+
+            if (options.verbose)
+            {
+                console.log("match(), waiting for selectors:", options.selectors);
+            }
 
             if (!options.skipExisting)
             {
@@ -101,21 +110,19 @@ class WaitForElements
                 let existingEls = WaitForElements.
                     _querySelectors(rootEl, options.selectors);
 
-                let matchEls = WaitForElements._filterVisible(existingEls, options.visible);
-
-                if (options.filter)
-                {
-                    matchEls = options.filter(matchEls, null);
-                }
+                let matchEls = options.filter ?
+                    options.filter(existingEls) : existingEls;
 
                 if (matchEls.length !== 0)
                 {
-					if (options.verbose)
-					{
-						console.log("match(), found existing:", matchEls);
-					}
+                    let els = [... new Set(matchEls)];
 
-                    resolve([... new Set(matchEls)]);
+                    if (options.verbose)
+                    {
+                        console.log("match(), found existing:", els);
+                    }
+
+                    resolve(els);
                     return;
                 }
             }
@@ -146,18 +153,15 @@ class WaitForElements
                 ).flat(Infinity)) ];
 
                 matchEls = WaitForElements._filterVisible(matchEls, options.visible);
-                if (options.filter)
-                {
-                    matchEls = options.filter(matchEls);
-                }
+                matchEls = options.filter(matchEls);
 
                 if (matchEls.length !== 0)
                 {
-					if (options.verbose)
-					{
-						console.log("match(), mutations:", mutations);
-						console.log("match(), matched in mutations:", matchEls);
-					}
+                    if (options.verbose)
+                    {
+                        console.log("match(), mutations:", mutations);
+                        console.log("match(), matched in mutations:", matchEls);
+                    }
 
                     if (observer)
                         observer.disconnect();
@@ -186,7 +190,7 @@ class WaitForElements
                     subtree: true,
                 };
 
-                if (options.attributeFilter)
+                if ("attributeFilter" in options)
                     opts.attributeFilter = options.attributeFilter;
             }
 
@@ -207,7 +211,9 @@ class WaitForElements
 
     static matchOngoing(options, onMatchFn, onTimeoutFn = null)
     {
-        let rootEl = options.target || document.body;
+        _normalizeOptions(options);
+
+        let rootEl = options.target;
 
         if (options.verbose)
         {
@@ -220,10 +226,8 @@ class WaitForElements
             let matchEls = WaitForElements.
                 _querySelectors(rootEl, options.selectors);
 
-            if (options.filter)
-            {
-                matchEls = options.filter(matchEls, null);
-            }
+            let matchEls = options.filter ?
+                options.filter(existingEls) : existingEls;
 
             if (matchEls.length !== 0)
             {
@@ -266,10 +270,7 @@ class WaitForElements
                 return newEls;
             }).flat(Infinity)) ];
 
-            if (options.filter)
-            {
-                matchEls = options.filter(matchEls);
-            }
+            matchEls = options.filter(matchEls);
 
             if (matchEls.length !== 0)
             {
@@ -307,7 +308,7 @@ class WaitForElements
                 subtree: true,
             };
 
-            if (options.attributeFilter)
+            if ("attributeFilter" in options)
                 opts.attributeFilter = options.attributeFilter;
         }
 
@@ -330,4 +331,3 @@ class WaitForElements
         }, timeout);
     }
 }
-
