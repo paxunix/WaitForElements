@@ -53,6 +53,62 @@ class WaitForElements
     }
 
 
+    static _handleMutations(mutations, options, resolveFn)
+    {
+        // Handling characterData is special, because the target is
+        // the text node itself.  We have to search up the parent
+        // element hierarchy to the root element, matching those
+        // elements against the selectors, and including any matched
+        // nodes in the set that are affected by the characterData
+        // change (because the text content change applies to all of
+        // them, even if the observer only fires it for the affected
+        // text node).
+        let checkEls = [ ... new Set(mutations.map(m => [
+            m.type === "childList" ? Array.from(m.addedNodes) : [],
+            m.type === "attributes" ? m.target : [],
+            m.type === "characterData" ? WaitForElements._getMatchedParents(m.target.parentElement, options.target, options.selectors) : [],
+        ]).flat(Infinity)) ];
+
+        // Evaluate selectors against any of the added nodes to get
+        // added (and nested) elements that match.
+        let matchEls = [ ... new Set(checkEls.map(el =>
+            WaitForElements._querySelectors(el, options.selectors)
+        ).flat(Infinity)) ];
+
+        matchEls = matchEls.filter(el => {
+            if (!options.onlyUnique)
+                return true;
+
+            if (!el.__WaitForElements_seen)
+            {
+                el.__WaitForElements_seen = true;
+                return true;
+            }
+
+            return false;
+        });
+
+        matchEls = options.filter(matchEls);
+
+        if (matchEls.length !== 0)
+        {
+            if (options.verbose)
+            {
+                console.log("match(), mutations:", mutations);
+                console.log("match(), matched in mutations:", matchEls);
+            }
+
+            if (observer)
+                observer.disconnect();
+
+            if (timerId)
+                clearTimeout(timerId);
+
+            resolveFn([... new Set(matchEls)]);
+        }
+    }
+
+
     static match(options)
     {
         _normalizeOptions(options);
@@ -92,48 +148,7 @@ class WaitForElements
             // elements.
             let timerId = null;
             let observer = null;
-            observer = new MutationObserver(mutations => {
-                // Handling characterData is special, because the target is
-                // the text node itself.  We have to search up the parent
-                // element hierarchy to the root element, matching those
-                // elements against the selectors, and including any matched
-                // nodes in the set that are affected by the characterData
-                // change (because the text content change applies to all of
-                // them, even if the observer only fires it for the affected
-                // text node).
-                let checkEls = [ ... new Set(mutations.map(m => [
-                    m.type === "childList" ? Array.from(m.addedNodes) : [],
-                    m.type === "attributes" ? m.target : [],
-                    m.type === "characterData" ? WaitForElements._getMatchedParents(m.target.parentElement, options.target, options.selectors) : [],
-                ]).flat(Infinity)) ];
-
-                // Evaluate selectors against any of the added nodes to get
-                // added (and nested) elements that match.
-                let matchEls = [ ... new Set(checkEls.map(el =>
-                    WaitForElements._querySelectors(el, options.selectors)
-                ).flat(Infinity)) ];
-
-                matchEls = WaitForElements._filterVisible(matchEls, options.visible);
-                matchEls = options.filter(matchEls);
-
-                if (matchEls.length !== 0)
-                {
-                    if (options.verbose)
-                    {
-                        console.log("match(), mutations:", mutations);
-                        console.log("match(), matched in mutations:", matchEls);
-                    }
-
-                    if (observer)
-                        observer.disconnect();
-
-                    if (timerId)
-                        clearTimeout(timerId);
-
-                    resolve([... new Set(matchEls)]);
-                    return;
-                }
-            });
+            observer = new MutationObserver(mutations => WaitForElements._handleMutations(mutations, options, resolve));
 
             let opts = null;
             if (options.observerOptions)
@@ -174,6 +189,10 @@ class WaitForElements
     {
         _normalizeOptions(options);
 
+        // By default, matchOngoing won't return elements it has already
+        // returned.
+        options.onlyUnique = options.onlyUnique ?? true;
+
         let rootEl = options.target;
 
         if (options.verbose)
@@ -198,60 +217,16 @@ class WaitForElements
                     console.log("matchOngoing(), found existing:", els);
                 }
 
+                els.forEach(el => el.__WaitForElements_seen = true);
+
                 onMatchFn(els);
             }
         }
 
-        // Regardless of existing elements, observe for added/updated
-        // elements.
+        // Observe for added/updated elements.
         let timerId = null;
         let observer = null;
-        observer = new MutationObserver(mutations => {
-            // Handling characterData is special, because the target is
-            // the text node itself.  We have to search up the parent
-            // element hierarchy to the root element, matching those
-            // elements against the selectors, and including any matched
-            // nodes in the set that are affected by the characterData
-            // change (because the text content change applies to all of
-            // them, even if the observer only fires it for the affected
-            // text node).
-            let checkEls = [ ... new Set(mutations.map(m => [
-                m.type === "childList" ? Array.from(m.addedNodes) : [],
-                m.type === "attributes" ? m.target : [],
-                m.type === "characterData" ? WaitForElements._getMatchedParents(m.target.parentElement, options.target, options.selectors) : [],
-            ]).flat(Infinity)) ];
-
-            // Evaluate selectors against any of the added nodes to get
-            // added (and nested) elements that match.
-            let matchEls = [ ... new Set(checkEls.map(el => {
-                let newEls = [];
-
-                WaitForElements._querySelectors(el, options.selectors).forEach(j => { if (!j.__WaitForElements_seen) { newEls.push(j); j.__WaitForElements_seen = 1; } });
-
-                return newEls;
-            }).flat(Infinity)) ];
-
-            matchEls = options.filter(matchEls);
-
-            if (matchEls.length !== 0)
-            {
-                if (options.verbose)
-                {
-                    console.log("matchOngoing, mutations:", mutations);
-                    console.log("matchOngoing, matched in mutations:", matchEls);
-                }
-
-                if (timerId)
-                {
-                    clearTimeout(timerId);
-
-                    if (observer)
-                        observer.disconnect();
-                }
-
-                onMatchFn([... new Set(matchEls)]);
-            }
-        });
+        observer = new MutationObserver(mutations => WaitForElements._handleMutations(mutations, options, onMatchFn));
 
         let opts = null;
         if (options.observerOptions)
