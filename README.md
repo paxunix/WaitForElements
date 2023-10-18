@@ -38,13 +38,9 @@ called will be ignored.
 
 Default=`2000`.  The promise is rejected if no elements match within this many milliseconds after the promise is created.  If -1, wait for as long as the document is alive.
 
-##### options.visible
-
-Default=`undef` (no filtering based on visibility).  The set of elements matching the selectors is filtered only to those that are visible.  **NOTE:** visible means that the element is not hidden in the DOM, NOT that it's overlapping the viewport (for example, this will not detect if an element scrolls into view).  If set to `all`, all matched elements must be visible to resolve the promise.  For all other truthy values, one or more elements must be visible to resolve the promise.
-
 ##### options.filter
 
-Default = no-op (no filtering).  Function that takes an array of elements that match the selectors and returns a new array of elements.  If the returned array is empty, waiting continues (if the timeout permits).  Otherwise, the promise is resolved with the returned array of unique elements.  If `options.visible` is non-nullish, the array of input elements passed to this function is filtered for visibility (see above).
+Default = no-op (no filtering).  Function that takes an array of elements that match the selectors and returns a new array of elements.  If the returned array is empty, waiting continues (if the timeout permits).  Otherwise, the promise is resolved with the returned array of unique elements.
 
 ##### options.attributeFilter
 

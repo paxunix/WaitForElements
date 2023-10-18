@@ -20,45 +20,6 @@ class WaitForElements
     }
 
 
-    static _filterVisible(els, allMustBeVisible)
-    {
-        let visibleEls = Array.from(els).filter(el => {
-            let elRect = el.getBoundingClientRect();
-            let winRect = {
-                left: 0,
-                top: 0,
-                right: window.innerWidth ||
-                    document.documentElement.clientWidth,
-                bottom: window.innerHeight ||
-                    document.documentElement.clientHeight,
-            };
-
-            let noOverlap = elRect.left > winRect.right ||
-                elRect.right < winRect.left ||
-                elRect.top > winRect.bottom ||
-                elRect.bottom < winRect.top;
-            return !noOverlap;
-        });
-
-        if (allMustBeVisible && visibleEls.length !== els.length)
-            return [];
-
-        return visibleEls;
-    }
-
-
-    static filterVisible(els, visibility)
-    {
-        if (visibility ?? false)
-        {
-            return WaitForElements._filterVisible(els,
-                visibility === "all");
-        }
-
-        return els;
-    }
-
-
     static _getMatchedParents(el, rootEl, selectors)
     {
         if (!(el instanceof Element))
