@@ -1,9 +1,28 @@
-"use strict";
+/* jshint esversion: 11, browser: true */
 
 class WaitForElements
 {
+
+    static _version = "20231018";
+
+
+    constructor(options)
+    {
+        "use strict";
+
+        this.options = WaitForElements._normalizeOptions(options ?? {});
+        this.seen = new Map();
+        this.observer = null;
+        this.timerId = null;
+    }
+
+
+    // Return list of elements matching any of the selectors, starting at
+    // (and including) rootEl.
     static _querySelectors(rootEl, selectors)
     {
+        "use strict";
+
         if (!(rootEl instanceof Element))
             return [];
 
@@ -20,169 +39,240 @@ class WaitForElements
     }
 
 
-    static _filterVisible(els, allMustBeVisible)
+    // Walk up the DOM from el to rootEl to build up the hierarchy of nodes.
+    static _getElementsFromElementToRoot(el, rootEl)
     {
-        let visibleEls = Array.from(els).filter(el => {
-            let elRect = el.getBoundingClientRect();
-            let winRect = {
-                left: 0,
-                top: 0,
-                right: window.innerWidth ||
-                    document.documentElement.clientWidth,
-                bottom: window.innerHeight ||
-                    document.documentElement.clientHeight,
-            };
+        "use strict";
 
-            let noOverlap = elRect.left > winRect.right ||
-                elRect.right < winRect.left ||
-                elRect.top > winRect.bottom ||
-                elRect.bottom < winRect.top;
-            return !noOverlap;
-        });
-
-        if (allMustBeVisible && visibleEls.length !== els.length)
+        if (!(el instanceof Element))
             return [];
 
-        return visibleEls;
+        let els = [ el ];
+
+        while (el.parentElement !== null && el !== rootEl)
+        {
+            el = el.parentElement;
+            els.unshift(el);
+        }
+
+        // not finding the root element means el is not a child of it
+        if (el !== rootEl)
+            els = [];
+
+        return els;
     }
 
 
-    static _filterVisible(els, visibility)
+    static _normalizeOptions(options, defaults)
     {
-        if (visibility ?? false)
+        "use strict";
+
+        let builtinDefaults = {
+            target: document.body,
+            selectors: [],
+            filter: ((el) => el),
+            onlyOnce: false,
+            skipExisting: false,
+            timeout: -1,
+            observerOptions: {
+                attributeOldValue: true,
+                attributes: true,
+                characterDataOldValue: true,
+                characterData: true,
+                childList: true,
+                subtree: true,
+            },
+            verbose: false,
+        };
+
+        return Object.assign({}, builtinDefaults, defaults ?? {}, options);
+    }
+
+
+    static _getElementsMatchingSelectors(els, selectors)
+    {
+        "use strict";
+
+        return [ ... new Set(els.map(el =>
+                WaitForElements._querySelectors(el, selectors)
+            ).flat(Infinity)
+        )];
+    }
+
+
+    _filterOutSeenElements(els)
+    {
+        "use strict";
+
+        return els.filter(el => {
+            if (!this.seen.has(el))
+            {
+                this.seen.set(el, true);
+                return true;
+            }
+
+            return false;
+        });
+    }
+
+
+    _applyFilters(els)
+    {
+        "use strict";
+
+        let newels = this.options.onlyOnce ?
+            this._filterOutSeenElements(els) :
+            els;
+
+        newels = this.options.filter(newels);
+
+        return newels;
+    }
+
+
+    _getExistingElements()
+    {
+        "use strict";
+
+        let els = WaitForElements._getElementsMatchingSelectors([this.options.target], this.options.selectors);
+
+        els = this._applyFilters(els);
+
+        if (els.length !== 0)
         {
-            return WaitForElements._filterVisible(els,
-                visibility === "all");
+            if (this.options.verbose)
+            {
+                console.log("match(), found existing:", els);
+            }
         }
 
         return els;
     }
 
 
-    static _getMatchedParents(el, rootEl, selectors)
+    _getElementsFromMutations(mutations)
     {
-        if (!(el instanceof Element))
-            return [];
+        "use strict";
 
-        let matchedEls = [];
-
-        do {
-            for (let sel of Array.isArray(selectors) ? selectors : [ selectors ])
-            {
-                if (el.matches(sel))
-                    matchedEls.push(el);
-            }
-
-            if (el === rootEl)
-                break;
-
-            el = el.parentElement;
-        } while (el !== null);
-
-        // Reverse the list so it is ordered by innermost to outermost
-        // matching elements.
-        return matchedEls.reverse();
+        // Handling characterData is special, because the target is
+        // the text node itself.  We have to search up the parent
+        // element hierarchy to the root element, matching those
+        // elements against the selectors, and including any matched
+        // nodes in the set that are affected by the characterData
+        // change (because the text content change applies to all of
+        // them, even if the observer only fires it for the affected
+        // text node).
+        // Also dedupe elements here because the same element could have
+        // been returned by multiple mutation types.
+        return [ ... new Set(mutations.map(m => [
+            m.type === "childList" ? Array.from(m.addedNodes) : [],
+            m.type === "attributes" ? m.target : [],
+            m.type === "characterData" ? WaitForElements._getElementsFromElementToRoot(m.target.parentElement, this.options.target) : [],
+        ]).flat(Infinity)) ];
     }
 
 
-    static match(options)
+    _handleMutations(mutations, resolveFn)
     {
-        return new Promise((resolve, reject) => {
-            let rootEl = options.target || document.body;
+        "use strict";
 
-            // Check for element in case it already exists
-            let existingEls = WaitForElements.
-                _querySelectors(rootEl, options.selectors);
+        let els = this._getElementsFromMutations(mutations);
 
-            let matchEls = WaitForElements._filterVisible(existingEls, options.visible);
+        els = WaitForElements._getElementsMatchingSelectors(els,
+            this.options.selectors);
 
-            if (options.filter)
+        els = this._applyFilters(els);
+
+        if (els.length !== 0)
+        {
+            if (this.options.verbose)
             {
-                matchEls = options.filter(matchEls, null);
+                console.log("match(), mutations:", mutations);
+                console.log("match(), matched in mutations:", els);
             }
 
-            if (matchEls.length !== 0)
+            if (!this.options.isOngoing && this.observer !== null)
+                this.observer.disconnect();
+
+            if (this.timerId !== null)
+                window.clearTimeout(this.timerId);
+
+            resolveFn(els);
+        }
+    }
+
+
+    _setupTimeout(onTimeoutFn)
+    {
+        "use strict";
+
+        this.timerId = window.setTimeout(() => {
+            this.observer.disconnect();
+
+            onTimeoutFn(new Error(`Failed to find elements matching ${this.options.selectors} within ${this.options.timeout} milliseconds`));
+        }, this.options.timeout);
+    }
+
+
+    _startMatching(onMatchFn, onTimeoutFn)
+    {
+        "use strict";
+
+        if (this.options.verbose)
+        {
+            console.log("match(), waiting for selectors:", this.options.selectors);
+        }
+
+        if (!this.options.skipExisting)
+        {
+            let els = this._getExistingElements();
+            if (els.length > 0)
             {
-                resolve([... new Set(matchEls)]);
-                return;
-            }
+                onMatchFn(els);
 
-            // No existing matching elements, so observe for added/updated
-            // elements.
-            let timerId = null;
-            let observer = null;
-            observer = new MutationObserver(mutations => {
-                // Handling characterData is special, because the target is
-                // the text node itself.  We have to search up the parent
-                // element hierarchy to the root element, matching those
-                // elements against the selectors, and including any matched
-                // nodes in the set that are affected by the characterData
-                // change (because the text content change applies to all of
-                // them, even if the observer only fires it for the affected
-                // text node).
-                let checkEls = [ ... new Set(mutations.map(m => [
-                    m.type === "childList" ? Array.from(m.addedNodes) : [],
-                    m.type === "attributes" ? m.target : [],
-                    m.type === "characterData" ? WaitForElements._getMatchedParents(m.target.parentElement, options.target, options.selectors) : [],
-                ]).flat(Infinity)) ];
-
-                // Evaluate selectors against any of the added nodes to get
-                // added (and nested) elements that match.
-                let matchEls = [ ... new Set(checkEls.map(el =>
-                    WaitForElements._querySelectors(el, options.selectors)
-                ).flat(Infinity)) ];
-
-                matchEls = WaitForElements._filterVisible(matchEls, options.visible);
-                if (options.filter)
-                {
-                    matchEls = options.filter(matchEls);
-                }
-
-                if (matchEls.length !== 0)
-                {
-                    if (observer)
-                        observer.disconnect();
-
-                    if (timerId)
-                        clearTimeout(timerId);
-
-                    resolve([... new Set(matchEls)]);
+                // if not ongoing matching, return as soon as we have
+                // existing elements.
+                if (!this.options.isOngoing)
                     return;
-                }
-            });
-
-            let opts = null;
-            if (options.observerOptions)
-            {
-                opts = Object.create(options.observerOptions);
             }
-            else
-            {
-                opts = {
-                    attributeOldValue: true,
-                    attributes: true,
-                    characterDataOldValue: true,
-                    characterData: true,
-                    childList: true,
-                    subtree: true,
-                };
+        }
 
-                if (options.attributeFilter)
-                    opts.attributeFilter = options.attributeFilter;
-            }
+        this.observer = new MutationObserver(mutations => this._handleMutations(mutations, onMatchFn));
+        this.observer.observe(this.options.target, this.options.observerOptions);
 
-            observer.observe(rootEl, opts);
+        if (this.options.timeout === -1)
+            return;
 
-            let timeout = options.timeout || 2000;
-            if (timeout === -1)
-                return;
+        this._setupTimeout(onTimeoutFn);
+    }
 
-            timerId = window.setTimeout(() => {
-                observer.disconnect();
 
-                reject(new Error(`Failed to find elements matching ${options.selectors} within ${timeout} milliseconds`));
-            }, timeout);
+    match(onMatchFn, onTimeoutFn)
+    {
+        "use strict";
+
+        if (this.options.isOngoing)
+        {
+            onMatchFn = onMatchFn ?? (() => undefined);
+            onTimeoutFn = onTimeoutFn ?? (() => undefined);
+
+            this._startMatching(onMatchFn, onTimeoutFn);
+            return;
+        }
+
+        return new Promise((resolve, reject) => {
+            this._startMatching(resolve, reject);
         });
     }
-}
 
+
+    stop()
+    {
+        "use strict";
+
+        // XXX: if there is an ongoing or waiting match, disconnect its
+        // observer and delete any timer ID
+    }
+
+
+}   // class WaitForElements

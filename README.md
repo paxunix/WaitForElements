@@ -1,50 +1,71 @@
 # WaitForElements.js
 
-Basic promise-based mechanism to wait for elements meeting constraints to appear in the DOM.
+Basic promise/callback mechanism to wait for elements meeting constraints to appear in the DOM.
 
 Does NOT support waiting for elements to be removed from the DOM.
 
 
 ## API
 
-#### WaitForElements.match(options)
+### _constructor(options)_
 
-Return a promise to wait for elements to show up in the DOM for which particular constraints are true.  The mutation observer used will fire for added nodes, attribute changes, and text changes.  The promise will resolve with the set of elements matching the selector under the target for which any filtering is true.
+`options` is an object.
 
-#### Return
+#### options.isOngoing
 
-##### Promise
+Continue to observe the `options.target` element until the `options.timeout` is reached.  This means the callbacks to `match()` must be used, since a Promise cannot be returned.
 
-Resolve with an array of matched elements.  Reject on error or failure to find any elements within timeout.
+#### options.selectors
 
-#### Parameters
+Array of CSS selectors to wait for appearance in the DOM.  If no elements match within the timeout, the promise is rejected, or match()'s `onTimeoutFn` is called.
 
-`options` is an object:
-
-##### options.selectors
-
-Array of CSS selectors to wait for appearance in the DOM.  If no elements match within the timeout, the promise is rejected.
-
-##### options.target
+#### options.target
 
 Default=`document.body`.  Target DOM element to watch, including its children.
 
-##### options.timeout
+#### options.skipExisting
 
-Default=`2000`.  The promise is rejected if no elements match within this many milliseconds after the promise is created.  If -1, wait for as long as the document is alive.
+Default=`false`.  If true, elements currently in the DOM when match() is called will be ignored.  Mutations to those elements in the future can still return those elements.
 
-##### options.visible
+#### options.onlyOnce
 
-Default=`undef` (no filtering based on visibility).  The set of elements matching the selectors is filtered only to those that are visible.  **NOTE:** visible means that the element is not hidden in the DOM, NOT that it's overlapping the viewport (for example, this will not detect if an element scrolls into view).  If set to `all`, all matched elements must be visible to resolve the promise.  For all other truthy values, one or more elements must be visible to resolve the promise.
+Default=false.  If a matched and filtered element has already been returned, do not return it again if it reappears in a DOM mutation.
 
-##### options.filter
+NOTE:  For `attribute` or `characterData` mutations, enabling `onlyOnce` may be a bad idea because you'll never see the updates if the element was already returned by matching.
 
-Default = no-op (no filtering).  Function that takes an array of elements that match the selectors and returns a new array of elements.  If the returned array is empty, waiting continues (if the timeout permits).  Otherwise, the promise is resolved with the returned array of unique elements.  If `options.visible` is non-nullish, the array of input elements passed to this function is filtered for visibility (see above).
+#### options.timeout
 
-##### options.attributeFilter
+Default=`-1`.  The promise is rejected or match()'s `onTimeoutFn` is called if no elements match within this many milliseconds after match() is called.  If -1, wait for as long as the document is alive.
 
-Default = `undef`.  Array used to set the `attributeFilter` option for the mutation observer.  It contains the names of attributes for which matching should be considered (since attribute updates may be many and expensive).  Ignored if `observerOptions` is given.
+#### options.filter
 
-##### options.observerOptions
+Default = no-op (no filtering).  Function that takes an array of elements that match `options.selectors` and returns a new array of elements.  If the returned array is empty, waiting continues (if the timeout permits).  Otherwise, the promise is resolved or match()'s `onMatchFn` is called with the returned array of unique elements.
 
-Optional.  Default is to observe all child nodes, subtrees, attributes, and character data beneath `target`.  If given, must conform to the `MutationObserver.observe()` API.
+#### options.observerOptions
+
+Default is to observe all child nodes, subtrees, attributes, and character data beneath `target`.  If given, must conform to the `MutationObserver.observe()` API's options.
+
+#### options.verbose
+
+Default=`false`.  Log diagnostic information to the console.
+
+
+### _WaitForElements.match(onMatchFn, onTimeoutFn)_
+
+Wait for DOM elements to exist for which particular constraints are true.  The mutation observer used will fire for added nodes, attribute changes, and text changes.
+
+#### Return
+
+If `options.isOngoing` is true, `match()` returns undefined after setting up an observer.  `onMatchFn` and `onTimeoutFn` are called as indicated above.
+
+If `options.isOngoing` is false, `match()` returns a Promise that resolves to an array of unique matched elements.  The promise is rejected if there was an error or failure to match any element within the given timeout.  `onMatchFn` and `onTimeoutFn` are ignored and optional.
+
+#### Parameters
+
+##### onMatchFn
+
+Reference to a function that is called when elements are matched.  Its parameter is an array of the matched DOM elements.
+
+##### onTimeoutFn
+
+Reference to a function that is called if `options.timeout` is reached before any elements are matched.  Its parameter is an Error object indicating the timeout was reached.
