@@ -503,13 +503,13 @@ describe("_setupTimeout", function() {
         let callbackFn = jasmine.createSpy("timeoutCallbackFn");
 
         // Fake the observer so it can be disconnected
-        waiter.observer = jasmine.createSpyObj("fakeObserver", [ "disconnect" ]);;
+        waiter.observer = jasmine.createSpyObj("fakeObserver", [ "disconnect" ]);
         waiter._setupTimeout(callbackFn);
 
         jasmine.clock().tick(10000);
 
         expect(waiter.observer.disconnect).toHaveBeenCalled();
-        expect(callbackFn).toHaveBeenCalledWith(jasmine.any(Error));
+        expect(callbackFn).toHaveBeenCalledOnceWith(jasmine.any(Error));
     });
 
 });
@@ -617,31 +617,28 @@ describe("_applyFilters", function() {
 });
 
 
-xdescribe("_handleMutations", function() {
-    // mutations with type childList, and attributes, and characterData that
-    // would duplicate elements
-    // 1. adding a node that matches selector
-    // 2. adding a node that doesn't match selector but contains a nested
-    //    node that does
-    // 3. adding node that does match and nested also matches
-    // with multiple selectors that would duplicate elements
-    // then with and without onlyOnce
-    // then with and without a filter func
-    // observer is disconnected
-    // timer is cleared
-    xit("childList, attribute, and characterData mutations", function () {
-        this._maindiv.innerHTML = `
-        <span id=span1>span1
-            <div id=interdiv>
-                <span id=span2>
-                    <p id=p1>p1</p>
-                    span2
-                </span>
-             </div>
-            <div id=otherdiv>
-            </div>
-        </span>
-        `;
+describe("_handleMutations", function() {
+
+    it("all matching selectors' elements are filtered and returned", function () {
+        let filterSpy = jasmine.createSpy("filterSpy", els => els).and.callThrough();
+        let waiter = new WaitForElements({
+            filter: filterSpy,
+            selectors: [ "div" ],
+        });
+        let spy_gefm = spyOn(waiter, "_getElementsFromMutations").and.callThrough();
+        let spy_gems= spyOn(WaitForElements, "_getElementsMatchingSelectors").and.callThrough();
+        let spy_af = spyOn(waiter, "_applyFilters").and.callThrough();
+        let newdiv = document.createElement("div");
+        let mut = {
+            type: "childList",
+            addedNodes: [ newdiv, newdiv ],
+        };
+        let els = waiter._handleMutations([mut, mut]);
+
+        expect(spy_gefm).toHaveBeenCalledBefore(spy_gems);
+        expect(spy_gems).toHaveBeenCalledBefore(spy_af);
+        expect(spy_af).toHaveBeenCalledOnceWith([newdiv]);
+        expect(els).toEqual([newdiv]);
     });
 });
 
@@ -660,28 +657,3 @@ xdescribe("stop", function() {
 });
 
 });
-
-
-// XXX test shit
-(() => {
-
-let observer = new MutationObserver(mutations => {
-    console.log("mutations:", mutations);
-});
-observer.observe(document.querySelector('#_maindiv'), {
-                attributeOldValue: true,
-                attributes: true,
-                characterDataOldValue: true,
-                characterData: true,
-                childList: true,
-                subtree: true,
-});
-
-
-testRecords = [
-{
-
-}
-];
-
-})

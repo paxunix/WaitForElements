@@ -172,7 +172,7 @@ class WaitForElements
     }
 
 
-    _handleMutations(mutations, resolveFn)
+    _handleMutations(mutations)
     {
         "use strict";
 
@@ -190,15 +190,9 @@ class WaitForElements
                 console.log("match(), mutations:", mutations);
                 console.log("match(), matched in mutations:", els);
             }
-
-            if (!this.options.isOngoing && this.observer !== null)
-                this.observer.disconnect();
-
-            if (this.timerId !== null)
-                window.clearTimeout(this.timerId);
-
-            resolveFn(els);
         }
+
+        return els;
     }
 
 
@@ -211,6 +205,24 @@ class WaitForElements
 
             onTimeoutFn(new Error(`Failed to find elements matching ${this.options.selectors} within ${this.options.timeout} milliseconds`));
         }, this.options.timeout);
+    }
+
+
+    _clearTimeout()
+    {
+        "use strict";
+
+        if (this.timerId !== null)
+            window.clearTimeout(this.timerId);
+    }
+
+
+    _disconnectObserver()
+    {
+        "use strict";
+
+        if (this.observer !== null)
+            this.observer.disconnect();
     }
 
 
@@ -237,7 +249,18 @@ class WaitForElements
             }
         }
 
-        this.observer = new MutationObserver(mutations => this._handleMutations(mutations, onMatchFn));
+        this.observer = new MutationObserver(mutations => {
+            let els = this._handleMutations(mutations, onMatchFn);
+
+            if (!this.options.isOngoing)
+            {
+                this._disconnectObserver();
+                this._clearTimeout();
+            }
+
+            onMatchFn(els);
+        });
+
         this.observer.observe(this.options.target, this.options.observerOptions);
 
         if (this.options.timeout === -1)
