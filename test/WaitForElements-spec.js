@@ -643,8 +643,15 @@ describe("_handleMutations", function() {
 });
 
 
-xdescribe("_startMatching", function() {
-    xit("xxx", ()=>"");
+describe("_startMatching", function() {
+    it("skipExisting==false includes matching elements in DOM before the observer starts", function () {
+        // XXX
+    });
+
+
+    it("skipExisting==true excludes matching elements in DOM before the observer starts", function () {
+        // XXX
+    });
 });
 
 
