@@ -644,14 +644,45 @@ describe("_handleMutations", function() {
 
 
 describe("_startMatching", function() {
-    it("skipExisting==false includes matching elements in DOM before the observer starts", function () {
+    it("(skipExisting==false && timeout == -1 && ongoing == false)", function () {
         // XXX
     });
 
 
-    it("skipExisting==true excludes matching elements in DOM before the observer starts", function () {
+    it("(skipExisting==true && timeout == -1 && ongoing == false)", function () {
         // XXX
     });
+
+
+    it("(skipExisting==false && timeout == 10000 && ongoing == false)", function () {
+        // XXX
+    });
+
+
+    it("(skipExisting==true && timeout == 10000 && ongoing == false)", function () {
+        // XXX
+    });
+
+
+    it("(skipExisting==false && timeout == -1 && ongoing == true)", function () {
+        // XXX
+    });
+
+
+    it("(skipExisting==true && timeout == -1 && ongoing == true)", function () {
+        // XXX
+    });
+
+
+    it("(skipExisting==false && timeout == 10000 && ongoing == true)", function () {
+        // XXX
+    });
+
+
+    it("(skipExisting==true && timeout == 10000 && ongoing == true)", function () {
+        // XXX
+    });
+
 });
 
 
