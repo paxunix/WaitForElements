@@ -226,28 +226,9 @@ class WaitForElements
     }
 
 
-    _startMatching(onMatchFn, onTimeoutFn)
+    _continueMatching(onMatchFn)
     {
         "use strict";
-
-        if (this.options.verbose)
-        {
-            console.log("match(), waiting for selectors:", this.options.selectors);
-        }
-
-        if (!this.options.skipExisting)
-        {
-            let els = this._getExistingElements();
-            if (els.length > 0)
-            {
-                onMatchFn(els);
-
-                // if not ongoing matching, return as soon as we have
-                // existing elements.
-                if (!this.options.isOngoing)
-                    return;
-            }
-        }
 
         this.observer = new MutationObserver(mutations => {
             let els = this._handleMutations(mutations, onMatchFn);
@@ -262,11 +243,30 @@ class WaitForElements
         });
 
         this.observer.observe(this.options.target, this.options.observerOptions);
+    }
 
-        if (this.options.timeout === -1)
-            return;
 
-        this._setupTimeout(onTimeoutFn);
+    _startMatching(onMatchFn, onTimeoutFn)
+    {
+        "use strict";
+
+        if (this.options.verbose)
+        {
+            console.log("match(), waiting for selectors:", this.options.selectors);
+        }
+
+        if (!this.options.skipExisting)
+        {
+            let els = this._getExistingElements();
+            if (els.length > 0)
+                onMatchFn(els);
+        }
+
+        if (this.options.isOngoing)
+            this._continueMatching(onMatchFn);
+
+        if (this.options.timeout !== -1)
+            this._setupTimeout(onTimeoutFn);
     }
 
 

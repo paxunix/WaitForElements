@@ -644,45 +644,43 @@ describe("_handleMutations", function() {
 
 
 describe("_startMatching", function() {
-    it("(skipExisting==false && timeout == -1 && ongoing == false)", function () {
-        // XXX
+    it("skipExisting==false, isOngoing=false, timeout=-1", function () {
+        this._maindiv.innerHTML = `
+        <span id=span1>span1
+            <div id=interdiv>
+                <span id=span2>
+                    <p id=p1>p1</p>
+                    span2
+                </span>
+             </div>
+            <div id=otherdiv>
+            </div>
+        </span>
+        `;
+        let onMatchFn = jasmine.createSpy("onMatchFn");
+        let onTimeoutFn = jasmine.createSpy("onTimeoutFn");
+        let waiter = new WaitForElements({
+                target: this._maindiv,
+                selectors: [ "span" ],
+                skipExisting: false,
+            });
+        let spy_gee = spyOn(waiter, "_getExistingElements").and.callThrough();
+        let spy_cm = spyOn(waiter, "_continueMatching").and.callThrough();
+        let spy_st = spyOn(waiter, "_setupTimeout").and.callThrough();
+
+        waiter._startMatching(onMatchFn, onTimeoutFn);
+
+        expect(spy_gee).toHaveBeenCalled();
+        expect(onMatchFn).toHaveBeenCalledOnceWith(Array.from(this._maindiv.querySelectorAll("span")));
+        expect(spy_cm).not.toHaveBeenCalled();
+        expect(spy_st).not.toHaveBeenCalled();
+        expect(waiter.observer).toEqual(null);
     });
 
 
-    it("(skipExisting==true && timeout == -1 && ongoing == false)", function () {
+    it("skipExisting==true excludes matching elements in DOM before the observer starts", function () {
         // XXX
     });
-
-
-    it("(skipExisting==false && timeout == 10000 && ongoing == false)", function () {
-        // XXX
-    });
-
-
-    it("(skipExisting==true && timeout == 10000 && ongoing == false)", function () {
-        // XXX
-    });
-
-
-    it("(skipExisting==false && timeout == -1 && ongoing == true)", function () {
-        // XXX
-    });
-
-
-    it("(skipExisting==true && timeout == -1 && ongoing == true)", function () {
-        // XXX
-    });
-
-
-    it("(skipExisting==false && timeout == 10000 && ongoing == true)", function () {
-        // XXX
-    });
-
-
-    it("(skipExisting==true && timeout == 10000 && ongoing == true)", function () {
-        // XXX
-    });
-
 });
 
 
