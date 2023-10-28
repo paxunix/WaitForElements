@@ -672,13 +672,14 @@ describe("_startMatching", function() {
 
         expect(spy_gee).toHaveBeenCalled();
         expect(onMatchFn).toHaveBeenCalledOnceWith(Array.from(this._maindiv.querySelectorAll("span")));
+        expect(onTimeoutFn).not.toHaveBeenCalled();
         expect(spy_cm).not.toHaveBeenCalled();
         expect(spy_st).not.toHaveBeenCalled();
         expect(waiter.observer).toEqual(null);
     });
 
 
-    xit("skipExisting==false, isOngoing=true, timeout=-1", function (done) {
+    it("skipExisting==false, isOngoing=true, timeout=-1", function (done) {
         this._maindiv.innerHTML = `
         <span id=span1>span1
             <div id=interdiv>
@@ -691,12 +692,31 @@ describe("_startMatching", function() {
             </div>
         </span>
         `;
-        let onMatchFn = jasmine.createSpy("onMatchFn");
+        let argsLists = [];
+        let onMatchFn = (args) => {
+            argsLists.push(args);
+
+            if (argsLists.length === 2)
+            {
+                expect(argsLists).toEqual([
+                    [
+                        this._maindiv.querySelector("#span1"),
+                        this._maindiv.querySelector("#span2"),
+                    ], [
+                        this._maindiv.querySelector("#newspan"),
+                    ]
+                ]);
+
+                done();
+            }
+        };
+
         let onTimeoutFn = jasmine.createSpy("onTimeoutFn");
         let waiter = new WaitForElements({
                 target: this._maindiv,
                 selectors: [ "span" ],
                 skipExisting: false,
+                isOngoing: true,
             });
         let spy_gee = spyOn(waiter, "_getExistingElements").and.callThrough();
         let spy_cm = spyOn(waiter, "_continueMatching").and.callThrough();
@@ -704,13 +724,18 @@ describe("_startMatching", function() {
 
         waiter._startMatching(onMatchFn, onTimeoutFn);
 
-        // XXX: have to use done() and check the expectations there, since
-        // the mutation won't be caught until this function returns
         expect(spy_gee).toHaveBeenCalled();
-        expect(onMatchFn).toHaveBeenCalledOnceWith(Array.from(this._maindiv.querySelectorAll("span")));
-        expect(spy_cm).not.toHaveBeenCalled();
+        expect(onTimeoutFn).not.toHaveBeenCalled();
+        expect(spy_cm).toHaveBeenCalled();
         expect(spy_st).not.toHaveBeenCalled();
-        expect(waiter.observer).toEqual(null);
+        expect(waiter.observer).not.toEqual(null);
+
+        // trigger a mutation by adding an element
+        window.setTimeout(() => {
+            let newspan = document.createElement("span");
+            newspan.id = "newspan";
+            this._maindiv.append(newspan);
+        }, 0);
     });
 
 

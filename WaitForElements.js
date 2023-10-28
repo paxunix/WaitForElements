@@ -233,12 +233,6 @@ class WaitForElements
         this.observer = new MutationObserver(mutations => {
             let els = this._handleMutations(mutations, onMatchFn);
 
-            if (!this.options.isOngoing)
-            {
-                this._disconnectObserver();
-                this._clearTimeout();
-            }
-
             onMatchFn(els);
         });
 
