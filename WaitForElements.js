@@ -204,7 +204,7 @@ class WaitForElements
         "use strict";
 
         this.timerId = window.setTimeout(() => {
-            this.observer.disconnect();
+            this._disconnectObserver();
 
             onTimeoutFn(new Error(`Failed to find elements matching ${this.options.selectors} within ${this.options.timeout} milliseconds`));
         }, this.options.timeout);
