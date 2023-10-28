@@ -493,7 +493,7 @@ describe("_setupTimeout", function() {
     });
 
 
-    it("sets a timeout, after which it disconnects the observer and calls the callback with a message", function () {
+    it("sets a timeout, after which it disconnects the observer and calls the callback", function () {
         let waiter = new WaitForElements({
             target: this._maindiv,
             selectors: [ "span" ],
@@ -509,7 +509,7 @@ describe("_setupTimeout", function() {
         jasmine.clock().tick(10000);
 
         expect(waiter.observer.disconnect).toHaveBeenCalled();
-        expect(callbackFn).toHaveBeenCalledOnceWith(jasmine.any(Error));
+        expect(callbackFn).toHaveBeenCalledTimes(1);
     });
 
 });
@@ -849,13 +849,49 @@ describe("_startMatching", function() {
     });
 
 
-    // skipExisting==false, isOngoing=false, exceeding timeout
-    // This use case is impossible:  match existing elements
-    // and no ongoing matching means you can't possibly exceed the
-    // timeout
+    it("skipExisting==false, isOngoing=false, exceeding timeout", function () {
+        this._maindiv.innerHTML = `
+        <span id=span1>span1
+            <div id=interdiv>
+                <span id=span2>
+                    <p id=p1>p1</p>
+                    span2
+                </span>
+             </div>
+            <div id=otherdiv>
+            </div>
+        </span>
+        `;
+        let onMatchFn = jasmine.createSpy("onMatchFn").and.callThrough();
+        let onTimeoutFn = jasmine.createSpy("onTimeoutFn").and.callThrough();
+        let waiter = new WaitForElements({
+                target: this._maindiv,
+                selectors: [ "span" ],
+                skipExisting: false,
+                isOngoing: false,
+                timeout: 10000,
+            });
+        let spy_gee = spyOn(waiter, "_getExistingElements").and.callThrough();
+        let spy_cm = spyOn(waiter, "_continueMatching").and.callThrough();
+        let spy_st = spyOn(waiter, "_setupTimeout").and.callThrough();
+
+        waiter._startMatching(onMatchFn, onTimeoutFn);
+
+        expect(spy_gee).toHaveBeenCalled();
+        expect(onMatchFn).toHaveBeenCalledOnceWith(Array.from(this._maindiv.querySelectorAll("span")));
+        expect(onTimeoutFn).not.toHaveBeenCalled();
+        expect(spy_cm).not.toHaveBeenCalled();
+        expect(spy_st).toHaveBeenCalled();
+        expect(waiter.observer).toEqual(null);
+
+        // exceed timeout
+        jasmine.clock().tick(11000);
+
+        expect(onTimeoutFn).toHaveBeenCalledTimes(1);
+    });
 
 
-    it("skipExisting==false, isOngoing=true, exceeding timeout=n", function (done) {
+    it("skipExisting==false, isOngoing=true, exceeding timeout", function (done) {
         this._maindiv.innerHTML = `
         <span id=span1>span1
             <div id=interdiv>
@@ -871,8 +907,7 @@ describe("_startMatching", function() {
         let onMatchFn;
         let onTimeoutFn;
         let spy_do;
-        onTimeoutFn = jasmine.createSpy("onTimeoutFn", (err) => {
-            expect(err).toEqual(new Error("Failed to find elements matching span within 10000 milliseconds"));
+        onTimeoutFn = jasmine.createSpy("onTimeoutFn", () => {
             expect(spy_do).toHaveBeenCalled();
             expect(onMatchFn).toHaveBeenCalledTimes(2);
             expect(onTimeoutFn).toHaveBeenCalledTimes(1);
@@ -892,7 +927,6 @@ describe("_startMatching", function() {
                 skipExisting: false,
                 isOngoing: true,
                 timeout: 10000,
-                verbose: true,
             });
         let spy_gee = spyOn(waiter, "_getExistingElements").and.callThrough();
         let spy_cm = spyOn(waiter, "_continueMatching").and.callThrough();
@@ -925,10 +959,111 @@ describe("_startMatching", function() {
     });
 
 
-    // skipExisting==true, isOngoing=false, exceeding timeout
-    // This use case is impossible:  skip existing elements
-    // and no ongoing matching means you can't possibly exceed the
-    // timeout and you'll never match anything
+    it("skipExisting==true, isOngoing=false, exceeding timeout", function () {
+        this._maindiv.innerHTML = `
+        <span id=span1>span1
+            <div id=interdiv>
+                <span id=span2>
+                    <p id=p1>p1</p>
+                    span2
+                </span>
+             </div>
+            <div id=otherdiv>
+            </div>
+        </span>
+        `;
+        let argsLists = [];
+        let onMatchFn = jasmine.createSpy("onMatchFn");
+        let onTimeoutFn = jasmine.createSpy("onTimeoutFn");
+        let waiter = new WaitForElements({
+                target: this._maindiv,
+                selectors: [ "span" ],
+                skipExisting: true,
+                isOngoing: false,
+                timeout: 10000,
+            });
+        let spy_gee = spyOn(waiter, "_getExistingElements").and.callThrough();
+        let spy_cm = spyOn(waiter, "_continueMatching").and.callThrough();
+        let spy_st = spyOn(waiter, "_setupTimeout").and.callThrough();
+
+        waiter._startMatching(onMatchFn, onTimeoutFn);
+
+        expect(spy_gee).not.toHaveBeenCalled();
+        expect(onMatchFn).not.toHaveBeenCalled();
+        expect(onTimeoutFn).not.toHaveBeenCalled();
+        expect(spy_cm).not.toHaveBeenCalled();
+        expect(spy_st).toHaveBeenCalled();
+        expect(waiter.observer).toEqual(null);
+
+        jasmine.clock().tick(11000);
+        expect(onTimeoutFn).toHaveBeenCalled();
+    });
+
+
+    it("skipExisting==true, isOngoing=true, exceeding timeout", function (done) {
+        this._maindiv.innerHTML = `
+        <span id=span1>span1
+            <div id=interdiv>
+                <span id=span2>
+                    <p id=p1>p1</p>
+                    span2
+                </span>
+             </div>
+            <div id=otherdiv>
+            </div>
+        </span>
+        `;
+        let onMatchFn;
+        let onTimeoutFn;
+        let spy_do;
+        onTimeoutFn = jasmine.createSpy("onTimeoutFn", () => {
+            expect(spy_do).toHaveBeenCalled();
+            expect(onMatchFn).toHaveBeenCalledWith([this._maindiv.querySelector("#newspan")]);
+            expect(onTimeoutFn).toHaveBeenCalledTimes(1);
+
+            done();
+        }).and.callThrough();
+
+        onMatchFn = jasmine.createSpy("onMatchFn", (els) => {
+            // exceed the timeout after detecting a mutation prior to
+            // timeout, thus forcing the timeout to occur
+            jasmine.clock().tick(6000);
+        }).and.callThrough();
+
+        let waiter = new WaitForElements({
+                target: this._maindiv,
+                selectors: [ "span" ],
+                skipExisting: true,
+                isOngoing: true,
+                timeout: 10000,
+            });
+        let spy_gee = spyOn(waiter, "_getExistingElements").and.callThrough();
+        let spy_cm = spyOn(waiter, "_continueMatching").and.callThrough();
+        let spy_st = spyOn(waiter, "_setupTimeout").and.callThrough();
+        spy_do = spyOn(waiter, "_disconnectObserver").and.callThrough();
+
+        waiter._startMatching(onMatchFn, onTimeoutFn);
+
+        expect(spy_gee).not.toHaveBeenCalled();
+        expect(spy_cm).toHaveBeenCalled();
+        expect(spy_st).toHaveBeenCalled();
+        expect(waiter.observer).not.toEqual(null);
+        expect(onTimeoutFn).not.toHaveBeenCalled();
+        expect(spy_do).not.toHaveBeenCalled();
+        expect(onMatchFn).not.toHaveBeenCalled();
+
+        // trigger a mutation by adding an element
+        window.setTimeout(() => {
+            let newspan = document.createElement("span");
+            newspan.id = "newspan";
+            this._maindiv.append(newspan);
+        }, 0);
+
+        jasmine.clock().tick(5000);
+
+        // Note that for the mutation to be detected, the observer handler function needs to run, which can only happen once this function has returned.  So, we have to advance the clock past the timeout within the match function (see above).
+    });
+
 
 });     // exceeding timeouts
 

@@ -186,8 +186,12 @@ class WaitForElements
             this.options.selectors);
 
         if (els.length !== 0)
+        {
+            this._foundElements = true;
+
             if (this.options.verbose)
                 console.log("Found mutated elements matching selectors:", els);
+        }
 
         els = this._applyFilters(els);
 
@@ -206,7 +210,7 @@ class WaitForElements
         this.timerId = window.setTimeout(() => {
             this._disconnectObserver();
 
-            onTimeoutFn(new Error(`Failed to find elements matching ${this.options.selectors} within ${this.options.timeout} milliseconds`));
+            onTimeoutFn();
         }, this.options.timeout);
     }
 
@@ -257,7 +261,10 @@ class WaitForElements
         {
             let els = this._getExistingElements();
             if (els.length > 0)
+            {
+                this._foundElements = true;
                 onMatchFn(els);
+            }
         }
 
         if (this.options.isOngoing)
