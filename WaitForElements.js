@@ -136,15 +136,14 @@ class WaitForElements
 
         let els = WaitForElements._getElementsMatchingSelectors([this.options.target], this.options.selectors);
 
+        if (this.options.verbose)
+            console.log("Found existing elements matching selectors:", els);
+
         els = this._applyFilters(els);
 
         if (els.length !== 0)
-        {
             if (this.options.verbose)
-            {
-                console.log("match(), found existing:", els);
-            }
-        }
+                console.log("Elements after applying filters:", els);
 
         return els;
     }
@@ -176,21 +175,25 @@ class WaitForElements
     {
         "use strict";
 
+        if (this.options.verbose)
+        {
+            console.log("Mutations:", mutations);
+        }
+
         let els = this._getElementsFromMutations(mutations);
 
         els = WaitForElements._getElementsMatchingSelectors(els,
             this.options.selectors);
 
+        if (els.length !== 0)
+            if (this.options.verbose)
+                console.log("Found mutated elements matching selectors:", els);
+
         els = this._applyFilters(els);
 
         if (els.length !== 0)
-        {
             if (this.options.verbose)
-            {
-                console.log("match(), mutations:", mutations);
-                console.log("match(), matched in mutations:", els);
-            }
-        }
+                console.log("Mutated elements after applying filters:", els);
 
         return els;
     }
@@ -246,7 +249,7 @@ class WaitForElements
 
         if (this.options.verbose)
         {
-            console.log("match(), waiting for selectors:", this.options.selectors);
+            console.log("Waiting for selectors:", this.options.selectors);
         }
 
         if (!this.options.skipExisting)
