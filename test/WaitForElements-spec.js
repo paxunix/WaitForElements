@@ -739,8 +739,100 @@ describe("_startMatching", function() {
     });
 
 
-    it("skipExisting==true excludes matching elements in DOM before the observer starts", function () {
-        // XXX
+    it("skipExisting==true, isOngoing=false, timeout=-1", function () {
+        // this is an odd use case:  why would you skip existing but not do
+        // ongoing matching???  You'll never get anything.
+        this._maindiv.innerHTML = `
+        <span id=span1>span1
+            <div id=interdiv>
+                <span id=span2>
+                    <p id=p1>p1</p>
+                    span2
+                </span>
+             </div>
+            <div id=otherdiv>
+            </div>
+        </span>
+        `;
+        let argsLists = [];
+        let onMatchFn = jasmine.createSpy("onMatchFn");
+        let onTimeoutFn = jasmine.createSpy("onTimeoutFn");
+        let waiter = new WaitForElements({
+                target: this._maindiv,
+                selectors: [ "span" ],
+                skipExisting: true,
+                isOngoing: false,
+            });
+        let spy_gee = spyOn(waiter, "_getExistingElements").and.callThrough();
+        let spy_cm = spyOn(waiter, "_continueMatching").and.callThrough();
+        let spy_st = spyOn(waiter, "_setupTimeout").and.callThrough();
+
+        waiter._startMatching(onMatchFn, onTimeoutFn);
+
+        expect(spy_gee).not.toHaveBeenCalled();
+        expect(onMatchFn).not.toHaveBeenCalled();
+        expect(onTimeoutFn).not.toHaveBeenCalled();
+        expect(spy_cm).not.toHaveBeenCalled();
+        expect(spy_st).not.toHaveBeenCalled();
+        expect(waiter.observer).toEqual(null);
+    });
+
+
+    it("skipExisting==true, isOngoing=true, timeout=-1", function (done) {
+        this._maindiv.innerHTML = `
+        <span id=span1>span1
+            <div id=interdiv>
+                <span id=span2>
+                    <p id=p1>p1</p>
+                    span2
+                </span>
+             </div>
+            <div id=otherdiv>
+            </div>
+        </span>
+        `;
+        let argsLists = [];
+        let onMatchFn = (args) => {
+            argsLists.push(args);
+
+            if (argsLists.length === 1)
+            {
+                expect(argsLists).toEqual([
+                    [
+                        this._maindiv.querySelector("#newspan"),
+                    ]
+                ]);
+
+                done();
+            }
+        };
+
+        let onTimeoutFn = jasmine.createSpy("onTimeoutFn");
+        let waiter = new WaitForElements({
+                target: this._maindiv,
+                selectors: [ "span" ],
+                skipExisting: true,
+                isOngoing: true,
+            });
+        let spy_gee = spyOn(waiter, "_getExistingElements").and.callThrough();
+        let spy_cm = spyOn(waiter, "_continueMatching").and.callThrough();
+        let spy_st = spyOn(waiter, "_setupTimeout").and.callThrough();
+
+        waiter._startMatching(onMatchFn, onTimeoutFn);
+
+        expect(spy_gee).not.toHaveBeenCalled();
+        expect(onTimeoutFn).not.toHaveBeenCalled();
+        expect(spy_cm).toHaveBeenCalled();
+        expect(spy_st).not.toHaveBeenCalled();
+        expect(waiter.observer).not.toEqual(null);
+
+        // trigger a mutation by adding an element, to execute after this
+        // function returns
+        window.setTimeout(() => {
+            let newspan = document.createElement("span");
+            newspan.id = "newspan";
+            this._maindiv.append(newspan);
+        }, 0);
     });
 });
 
