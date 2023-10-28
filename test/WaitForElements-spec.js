@@ -678,6 +678,42 @@ describe("_startMatching", function() {
     });
 
 
+    xit("skipExisting==false, isOngoing=true, timeout=-1", function (done) {
+        this._maindiv.innerHTML = `
+        <span id=span1>span1
+            <div id=interdiv>
+                <span id=span2>
+                    <p id=p1>p1</p>
+                    span2
+                </span>
+             </div>
+            <div id=otherdiv>
+            </div>
+        </span>
+        `;
+        let onMatchFn = jasmine.createSpy("onMatchFn");
+        let onTimeoutFn = jasmine.createSpy("onTimeoutFn");
+        let waiter = new WaitForElements({
+                target: this._maindiv,
+                selectors: [ "span" ],
+                skipExisting: false,
+            });
+        let spy_gee = spyOn(waiter, "_getExistingElements").and.callThrough();
+        let spy_cm = spyOn(waiter, "_continueMatching").and.callThrough();
+        let spy_st = spyOn(waiter, "_setupTimeout").and.callThrough();
+
+        waiter._startMatching(onMatchFn, onTimeoutFn);
+
+        // XXX: have to use done() and check the expectations there, since
+        // the mutation won't be caught until this function returns
+        expect(spy_gee).toHaveBeenCalled();
+        expect(onMatchFn).toHaveBeenCalledOnceWith(Array.from(this._maindiv.querySelectorAll("span")));
+        expect(spy_cm).not.toHaveBeenCalled();
+        expect(spy_st).not.toHaveBeenCalled();
+        expect(waiter.observer).toEqual(null);
+    });
+
+
     it("skipExisting==true excludes matching elements in DOM before the observer starts", function () {
         // XXX
     });
