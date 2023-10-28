@@ -925,6 +925,11 @@ describe("_startMatching", function() {
     });
 
 
+    // skipExisting==true, isOngoing=false, exceeding timeout
+    // This use case is impossible:  skip existing elements
+    // and no ongoing matching means you can't possibly exceed the
+    // timeout and you'll never match anything
+
 });     // exceeding timeouts
 
 });     // _startMatching
