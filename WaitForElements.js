@@ -234,9 +234,10 @@ class WaitForElements
         "use strict";
 
         this.observer = new MutationObserver(mutations => {
-            let els = this._handleMutations(mutations, onMatchFn);
+            let els = this._handleMutations(mutations);
 
-            onMatchFn(els);
+            if (els.length > 0)
+                onMatchFn(els);
         });
 
         this.observer.observe(this.options.target, this.options.observerOptions);
