@@ -298,8 +298,8 @@ class WaitForElements
     {
         "use strict";
 
-        // XXX: if there is an ongoing or waiting match, disconnect its
-        // observer and delete any timer ID
+        this._disconnectObserver();
+        this._clearTimeout();
     }
 
 
