@@ -1099,56 +1099,6 @@ describe("match", function() {
     });
 
 
-    describe("exceeding timeout", function () {
-
-    beforeEach(function() {
-        jasmine.clock().install();
-    });
-
-    afterEach(function() {
-        jasmine.clock().uninstall();
-    });
-
-
-    it("isOngoing=false, returns a Promise rejected if no matches by timeout", async function () {
-        this._maindiv.innerHTML = `
-        <span id=span1>span1
-            <div id=interdiv>
-                <span id=span2>
-                    <p id=p1>p1</p>
-                    span2
-                </span>
-             </div>
-            <div id=otherdiv>
-            </div>
-        </span>
-        `;
-        let waiter = new WaitForElements({
-                target: this._maindiv,
-                selectors: [ "noelement" ],
-                isOngoing: false,
-                skipExisting: false,
-                timeout: 10000,
-            });
-
-        let spy_sm = spyOn(waiter, "_startMatching").and.callThrough();
-        let spy_cm = spyOn(waiter, "_continueMatching").and.callThrough();
-
-        let p = waiter.match();
-        jasmine.clock().tick(11000);
-
-        expect(spy_sm).toHaveBeenCalledWith(jasmine.any(Function), jasmine.any(Function));
-        expect(spy_cm).not.toHaveBeenCalled();
-
-        await expectAsync(p).toBeRejected();
-
-        expect(waiter.observer).toBe(null);
-        expect(waiter.timerId).toBe(null);
-    });
-
-    }); // exceeding timeout
-
-
     it("isOngoing=true, starts matching no promise returned", function () {
         // full-on whitebox testing here; I only have to care if
         // _startMatching is called with the functions I passed.  Everything
@@ -1198,6 +1148,44 @@ describe("match", function() {
     afterEach(function() {
         jasmine.clock().uninstall();
     });
+
+
+    it("isOngoing=false, returns a Promise rejected if no matches by timeout", async function () {
+        this._maindiv.innerHTML = `
+        <span id=span1>span1
+            <div id=interdiv>
+                <span id=span2>
+                    <p id=p1>p1</p>
+                    span2
+                </span>
+             </div>
+            <div id=otherdiv>
+            </div>
+        </span>
+        `;
+        let waiter = new WaitForElements({
+                target: this._maindiv,
+                selectors: [ "noelement" ],
+                isOngoing: false,
+                skipExisting: false,
+                timeout: 10000,
+            });
+
+        let spy_sm = spyOn(waiter, "_startMatching").and.callThrough();
+        let spy_cm = spyOn(waiter, "_continueMatching").and.callThrough();
+
+        let p = waiter.match();
+        jasmine.clock().tick(11000);
+
+        expect(spy_sm).toHaveBeenCalledWith(jasmine.any(Function), jasmine.any(Function));
+        expect(spy_cm).not.toHaveBeenCalled();
+
+        await expectAsync(p).toBeRejected();
+
+        expect(waiter.observer).toBe(null);
+        expect(waiter.timerId).toBe(null);
+    });
+
 
     it("isOngoing=true, matches and calls timeoutfn, no promise returned", function (done) {
 
@@ -1256,8 +1244,7 @@ describe("match", function() {
         expect(spy_cm).toHaveBeenCalledBefore(spy_st);
     });
 
-    });
-
+    }); // exceeding timeout
 
 });     // match
 
