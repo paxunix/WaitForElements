@@ -187,8 +187,6 @@ class WaitForElements
 
         if (els.length !== 0)
         {
-            this._foundElements = true;
-
             if (this.options.verbose)
                 console.log("Found mutated elements matching selectors:", els);
         }
@@ -264,7 +262,6 @@ class WaitForElements
             let els = this._getExistingElements();
             if (els.length > 0)
             {
-                this._foundElements = true;
                 onMatchFn(els);
             }
         }
