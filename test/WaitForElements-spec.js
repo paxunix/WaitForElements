@@ -1338,8 +1338,21 @@ describe("match", function() {
 
 });     // match
 
-xdescribe("stop", function() {
-    xit("xxx", ()=>"");
+describe("stop", function() {
+    it("any observer and timer are destroyed", function () {
+        let waiter = new WaitForElements({
+                target: this._maindiv,
+                selectors: [ "nomatter" ],
+            });
+
+        let spy_do = spyOn(waiter, "_disconnectObserver").and.callThrough();
+        let spy_ct = spyOn(waiter, "_clearTimeout").and.callThrough();
+
+        waiter.stop();
+
+        expect(spy_do).toHaveBeenCalled();
+        expect(spy_ct).toHaveBeenCalled();
+    });
 });
 
 });
