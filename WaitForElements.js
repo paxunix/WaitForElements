@@ -71,7 +71,7 @@ class WaitForElements
             target: document.body,
             selectors: [],
             filter: ((el) => el),
-            isOngoing: false,
+            allowMultipleMatches: false,
             onlyOnce: false,
             skipExisting: false,
             timeout: -1,
@@ -244,7 +244,7 @@ class WaitForElements
             {
                 onMatchFn(els);
 
-                if (!this.options.isOngoing)
+                if (!this.options.allowMultipleMatches)
                 {
                     this.stop();
                     return;
@@ -272,7 +272,7 @@ class WaitForElements
             {
                 onMatchFn(els);
 
-                if (!this.options.isOngoing)
+                if (!this.options.allowMultipleMatches)
                 {
                     this.stop();
                     return;
@@ -291,7 +291,7 @@ class WaitForElements
     {
         "use strict";
 
-        if (this.options.isOngoing)
+        if ((onMatchFn ?? null) || (onTimeoutFn ?? null))
         {
             onMatchFn = onMatchFn ?? (() => undefined);
             onTimeoutFn = onTimeoutFn ?? (() => undefined);

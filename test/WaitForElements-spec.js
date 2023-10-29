@@ -165,7 +165,7 @@ describe("_normalizeOptions", function() {
                 target: document.body,
                 selectors: [],
                 filter: jasmine.any(Function),
-                isOngoing: false,
+                allowMultipleMatches: false,
                 onlyOnce: false,
                 skipExisting: false,
                 timeout: -1,
@@ -188,7 +188,7 @@ describe("_normalizeOptions", function() {
                 target: document.body,
                 selectors: [],
                 filter: jasmine.any(Function),
-                isOngoing: false,
+                allowMultipleMatches: false,
                 onlyOnce: false,
                 skipExisting: false,
                 timeout: 4242,
@@ -212,7 +212,7 @@ describe("_normalizeOptions", function() {
                 selectors: [],
                 filter: jasmine.any(Function),
                 onlyOnce: false,
-                isOngoing: false,
+                allowMultipleMatches: false,
                 skipExisting: false,
                 timeout: 42,
                 observerOptions: {
@@ -284,7 +284,7 @@ describe("constructor", function() {
                     target: document.body,
                     selectors: [],
                     filter: jasmine.any(Function),
-                    isOngoing: false,
+                    allowMultipleMatches: false,
                     onlyOnce: false,
                     skipExisting: false,
                     timeout: -1,
@@ -650,7 +650,7 @@ describe("_handleMutations", function() {
 describe("_startMatching", function() {
 
 
-    it("skipExisting==false, matching elements already present, isOngoing=false, timeout=-1", function () {
+    it("skipExisting==false, matching elements already present, allowMultipleMatches=false, timeout=-1", function () {
         this._maindiv.innerHTML = `
         <span id=span1>span1
             <div id=interdiv>
@@ -685,7 +685,7 @@ describe("_startMatching", function() {
     });
 
 
-    it("skipExisting==false, matching elements show up later, isOngoing=false, timeout=-1", function (done) {
+    it("skipExisting==false, matching elements show up later, allowMultipleMatches=false, timeout=-1", function (done) {
         this._maindiv.innerHTML = `
         <span id=span1>span1
             <div id=interdiv>
@@ -731,7 +731,7 @@ describe("_startMatching", function() {
     });
 
 
-    it("skipExisting==false, isOngoing=true, timeout=-1", function (done) {
+    it("skipExisting==false, allowMultipleMatches=true, timeout=-1", function (done) {
         this._maindiv.innerHTML = `
         <span id=span1>span1
             <div id=interdiv>
@@ -768,7 +768,7 @@ describe("_startMatching", function() {
                 target: this._maindiv,
                 selectors: [ "span" ],
                 skipExisting: false,
-                isOngoing: true,
+                allowMultipleMatches: true,
             });
         let spy_gee = spyOn(waiter, "_getExistingElements").and.callThrough();
         let spy_cm = spyOn(waiter, "_continueMatching").and.callThrough();
@@ -791,7 +791,7 @@ describe("_startMatching", function() {
     });
 
 
-    it("skipExisting==true, isOngoing=false, timeout=-1 (wait forever until an matching element shows up)", function () {
+    it("skipExisting==true, allowMultipleMatches=false, timeout=-1 (wait forever until an matching element shows up)", function () {
         this._maindiv.innerHTML = `
         <span id=span1>span1
             <div id=interdiv>
@@ -811,7 +811,7 @@ describe("_startMatching", function() {
                 target: this._maindiv,
                 selectors: [ "span" ],
                 skipExisting: true,
-                isOngoing: false,
+                allowMultipleMatches: false,
             });
         let spy_gee = spyOn(waiter, "_getExistingElements").and.callThrough();
         let spy_st = spyOn(waiter, "_setupTimeout").and.callThrough();
@@ -828,7 +828,7 @@ describe("_startMatching", function() {
     });
 
 
-    it("skipExisting==true, isOngoing=true, timeout=-1", function (done) {
+    it("skipExisting==true, allowMultipleMatches=true, timeout=-1", function (done) {
         this._maindiv.innerHTML = `
         <span id=span1>span1
             <div id=interdiv>
@@ -862,7 +862,7 @@ describe("_startMatching", function() {
                 target: this._maindiv,
                 selectors: [ "span" ],
                 skipExisting: true,
-                isOngoing: true,
+                allowMultipleMatches: true,
             });
         let spy_gee = spyOn(waiter, "_getExistingElements").and.callThrough();
         let spy_cm = spyOn(waiter, "_continueMatching").and.callThrough();
@@ -897,7 +897,7 @@ describe("_startMatching", function() {
     });
 
 
-    it("skipExisting==false, isOngoing=false, exceeding timeout", function () {
+    it("skipExisting==false, allowMultipleMatches=false, exceeding timeout", function () {
         // this doesn't make sense, since you can never hit the timeout if
         // there are matching elements in DOM before matching is tried
         this._maindiv.innerHTML = `
@@ -918,7 +918,7 @@ describe("_startMatching", function() {
                 target: this._maindiv,
                 selectors: [ "span" ],
                 skipExisting: false,
-                isOngoing: false,
+                allowMultipleMatches: false,
                 timeout: 10000,
             });
         let spy_gee = spyOn(waiter, "_getExistingElements").and.callThrough();
@@ -943,7 +943,7 @@ describe("_startMatching", function() {
     });
 
 
-    it("skipExisting==false, isOngoing=true, exceeding timeout", function (done) {
+    it("skipExisting==false, allowMultipleMatches=true, exceeding timeout", function (done) {
         this._maindiv.innerHTML = `
         <span id=span1>span1
             <div id=interdiv>
@@ -977,7 +977,7 @@ describe("_startMatching", function() {
                 target: this._maindiv,
                 selectors: [ "span" ],
                 skipExisting: false,
-                isOngoing: true,
+                allowMultipleMatches: true,
                 timeout: 10000,
             });
         let spy_gee = spyOn(waiter, "_getExistingElements").and.callThrough();
@@ -1011,7 +1011,7 @@ describe("_startMatching", function() {
     });
 
 
-    it("skipExisting==true, isOngoing=false, exceeding timeout", function () {
+    it("skipExisting==true, allowMultipleMatches=false, exceeding timeout", function () {
         this._maindiv.innerHTML = `
         <span id=span1>span1
             <div id=interdiv>
@@ -1031,7 +1031,7 @@ describe("_startMatching", function() {
                 target: this._maindiv,
                 selectors: [ "span" ],
                 skipExisting: true,
-                isOngoing: false,
+                allowMultipleMatches: false,
                 timeout: 10000,
             });
         let spy_gee = spyOn(waiter, "_getExistingElements").and.callThrough();
@@ -1052,7 +1052,7 @@ describe("_startMatching", function() {
     });
 
 
-    it("skipExisting==true, isOngoing=true, exceeding timeout", function (done) {
+    it("skipExisting==true, allowMultipleMatches=true, exceeding timeout", function (done) {
         this._maindiv.innerHTML = `
         <span id=span1>span1
             <div id=interdiv>
@@ -1086,7 +1086,7 @@ describe("_startMatching", function() {
                 target: this._maindiv,
                 selectors: [ "span" ],
                 skipExisting: true,
-                isOngoing: true,
+                allowMultipleMatches: true,
                 timeout: 10000,
             });
         let spy_gee = spyOn(waiter, "_getExistingElements").and.callThrough();
@@ -1123,7 +1123,7 @@ describe("_startMatching", function() {
 
 
 describe("match", function() {
-    it("isOngoing=false, returns a Promise resolved with matches", async function () {
+    it("allowMultipleMatches=false, returns a Promise resolved with matches", async function () {
         this._maindiv.innerHTML = `
         <span id=span1>span1
             <div id=interdiv>
@@ -1139,7 +1139,7 @@ describe("match", function() {
         let waiter = new WaitForElements({
                 target: this._maindiv,
                 selectors: [ "span" ],
-                isOngoing: false,
+                allowMultipleMatches: false,
             });
 
         let spy_sm = spyOn(waiter, "_startMatching").and.callThrough();
@@ -1151,7 +1151,7 @@ describe("match", function() {
     });
 
 
-    it("isOngoing=false, no matches until mutation, returns a Promise resolved with matches", function (done) {
+    it("allowMultipleMatches=false, no matches until mutation, returns a Promise resolved with matches", function (done) {
         //XXX: you are here
         this._maindiv.innerHTML = `
         <span id=span1>span1
@@ -1168,7 +1168,7 @@ describe("match", function() {
         let waiter = new WaitForElements({
                 target: this._maindiv,
                 selectors: [ "#newspan" ],
-                isOngoing: false,
+                allowMultipleMatches: false,
             });
 
         let spy_sm = spyOn(waiter, "_startMatching").and.callThrough();
@@ -1191,7 +1191,7 @@ describe("match", function() {
     });
 
 
-    it("isOngoing=true, starts matching no promise returned", function () {
+    it("allowMultipleMatches=true, starts matching no promise returned", function () {
         // full-on whitebox testing here; I only have to care if
         // _startMatching is called with the functions I passed.  Everything
         // beyond that is already tested in _startMatching etc.
@@ -1211,7 +1211,7 @@ describe("match", function() {
         let waiter = new WaitForElements({
                 target: this._maindiv,
                 selectors: [ "#span1" ],
-                isOngoing: true,
+                allowMultipleMatches: true,
                 skipExisting: false,
                 timeout: 10000,
             });
@@ -1242,7 +1242,7 @@ describe("match", function() {
     });
 
 
-    it("isOngoing=false, returns a Promise rejected if no matches by timeout", async function () {
+    it("allowMultipleMatches=false, returns a Promise rejected if no matches by timeout", async function () {
         this._maindiv.innerHTML = `
         <span id=span1>span1
             <div id=interdiv>
@@ -1258,7 +1258,7 @@ describe("match", function() {
         let waiter = new WaitForElements({
                 target: this._maindiv,
                 selectors: [ "noelement" ],
-                isOngoing: false,
+                allowMultipleMatches: false,
                 skipExisting: false,
                 timeout: 10000,
             });
@@ -1277,7 +1277,7 @@ describe("match", function() {
     });
 
 
-    it("isOngoing=true, matches and calls timeoutfn, no promise returned", function (done) {
+    it("allowMultipleMatches=true, matches and calls timeoutfn, no promise returned", function (done) {
 
         // full-on whitebox testing here
         this._maindiv.innerHTML = `
@@ -1295,7 +1295,7 @@ describe("match", function() {
         let waiter = new WaitForElements({
                 target: this._maindiv,
                 selectors: [ "#newspan" ],
-                isOngoing: true,
+                allowMultipleMatches: true,
                 skipExisting: true,
                 timeout: 10000,
             });

@@ -11,7 +11,7 @@ Does NOT support waiting for elements to be removed from the DOM.
 
 `options` is an object.
 
-#### options.isOngoing
+#### options.allowMultipleMatches
 
 Default=false.  If true, matches can continue to be found until timeout.  Otherwise, the first match found will terminate matching.
 
@@ -56,9 +56,9 @@ Wait for DOM elements to exist for which particular constraints are true.  The m
 
 #### Return
 
-If `options.isOngoing` is true, `match()` returns undefined after setting up an observer.  `onMatchFn` and `onTimeoutFn` are called as indicated above.
+If either `onMatchFn` or `onTimeoutFn` are given, `match()` returns undefined after setting up a DOM observer.  Then `onMatchFn` and `onTimeoutFn` are called as indicated above.
 
-If `options.isOngoing` is false, `match()` returns a Promise that resolves to an array of unique matched elements.  The promise is rejected if there was an error or failure to match any element within the given timeout.  `onMatchFn` and `onTimeoutFn` are ignored and optional.
+Otherwise, `match()` returns a Promise that resolves to an array of unique matched elements.  The promise is rejected if there was an error or failure to match any element within the given timeout.  In this case, `allowMultipleMatches` isn't meaningful since a Promise can only be resolved once.
 
 #### Parameters
 
