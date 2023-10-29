@@ -13,7 +13,7 @@ Does NOT support waiting for elements to be removed from the DOM.
 
 #### options.isOngoing
 
-Continue to observe the `options.target` element until the `options.timeout` is reached.  This means the callbacks to `match()` must be used, since a Promise cannot be returned.
+Default=false.  If true, matches can continue to be found until timeout.  Otherwise, the first match found will terminate matching.
 
 #### options.selectors
 
@@ -25,7 +25,7 @@ Default=`document.body`.  Target DOM element to watch, including its children.
 
 #### options.skipExisting
 
-Default=`false`.  If true, elements currently in the DOM when match() is called will be ignored.  Mutations to those elements in the future can still return those elements.
+Default=`false`.  If true, elements currently in the DOM when `match()` is called will be ignored.  Mutations to those elements in the future can still return those elements.
 
 #### options.onlyOnce
 
@@ -39,11 +39,11 @@ Default=`-1`.  The promise is rejected or match()'s `onTimeoutFn` is called if n
 
 #### options.filter
 
-Default = no-op (no filtering).  Function that takes an array of elements that match `options.selectors` and returns a new array of elements.  If the returned array is empty, waiting continues (if the timeout permits).  Otherwise, the promise is resolved or match()'s `onMatchFn` is called with the returned array of unique elements.
+Default = no-op (no filtering).  Function that takes an array of elements that match `options.selectors` and returns a new (possibly empty) array of elements.  If the returned array is empty, waiting continues (if the timeout permits).  Otherwise, the promise is resolved or match()'s `onMatchFn` is called with the returned array of unique elements.
 
 #### options.observerOptions
 
-Default is to observe all child nodes, subtrees, attributes, and character data beneath `target`.  If given, must conform to the `MutationObserver.observe()` API's options.
+Default is to observe all child nodes, subtrees, attributes, and character data at and under `target`.  If given, must conform to the `MutationObserver.observe()` API's options.
 
 #### options.verbose
 
