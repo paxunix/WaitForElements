@@ -126,6 +126,9 @@ class WaitForElements
 
         newels = this.options.filter(newels);
 
+        if (this.options.verbose)
+            console.log("Elements after applying filter:", newels);
+
         return newels;
     }
 
@@ -140,10 +143,6 @@ class WaitForElements
             console.log("Found existing elements matching selectors:", els);
 
         els = this._applyFilters(els);
-
-        if (els.length !== 0)
-            if (this.options.verbose)
-                console.log("Elements after applying filters:", els);
 
         return els;
     }
@@ -194,10 +193,6 @@ class WaitForElements
         }
 
         els = this._applyFilters(els);
-
-        if (els.length !== 0)
-            if (this.options.verbose)
-                console.log("Mutated elements after applying filters:", els);
 
         return els;
     }
