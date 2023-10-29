@@ -71,6 +71,7 @@ class WaitForElements
             target: document.body,
             selectors: [],
             filter: ((el) => el),
+            isOngoing: false,
             onlyOnce: false,
             skipExisting: false,
             timeout: -1,
