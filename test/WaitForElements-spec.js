@@ -508,7 +508,7 @@ describe("_setupTimeout", function() {
 
         jasmine.clock().tick(10000);
 
-        expect(waiter.observer.disconnect).toHaveBeenCalled();
+        expect(waiter.observer).toBe(null);
         expect(callbackFn).toHaveBeenCalledTimes(1);
     });
 
@@ -1099,7 +1099,18 @@ describe("match", function() {
     });
 
 
-    it("isOngoing=false, returns a Promise rejected if no matches by timeout", async function () { await jasmine.clock().withMock(async () => {
+    describe("exceeding timeout", function () {
+
+    beforeEach(function() {
+        jasmine.clock().install();
+    });
+
+    afterEach(function() {
+        jasmine.clock().uninstall();
+    });
+
+
+    it("isOngoing=false, returns a Promise rejected if no matches by timeout", async function () {
         this._maindiv.innerHTML = `
         <span id=span1>span1
             <div id=interdiv>
@@ -1130,8 +1141,12 @@ describe("match", function() {
         expect(spy_cm).not.toHaveBeenCalled();
 
         await expectAsync(p).toBeRejected();
-    }); // clock mocked
+
+        expect(waiter.observer).toBe(null);
+        expect(waiter.timerId).toBe(null);
     });
+
+    }); // exceeding timeout
 
 
     it("isOngoing=true, starts matching no promise returned", function () {
@@ -1174,7 +1189,7 @@ describe("match", function() {
     });
 
 
-	describe("exceeding timeout", function () {
+    describe("exceeding timeout", function () {
 
     beforeEach(function() {
         jasmine.clock().install();
@@ -1211,8 +1226,10 @@ describe("match", function() {
         let spy_cm = spyOn(waiter, "_continueMatching").and.callThrough();
         let spy_st = spyOn(waiter, "_setupTimeout").and.callThrough();
         onTimeoutFn = jasmine.createSpy("onTimeoutFn", () => {
-			expect(onMatchFn).toHaveBeenCalledWith([this._maindiv.querySelector("#newspan")]);
+            expect(onMatchFn).toHaveBeenCalledWith([this._maindiv.querySelector("#newspan")]);
             expect(onTimeoutFn).toHaveBeenCalledTimes(1);
+            expect(waiter.observer).toBe(null);
+            expect(waiter.timerId).toBe(null);
 
             done();
         }).and.callThrough();

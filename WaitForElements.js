@@ -208,7 +208,7 @@ class WaitForElements
         "use strict";
 
         this.timerId = window.setTimeout(() => {
-            this._disconnectObserver();
+            this.stop();
 
             onTimeoutFn();
         }, this.options.timeout);
@@ -220,7 +220,10 @@ class WaitForElements
         "use strict";
 
         if (this.timerId !== null)
+        {
             window.clearTimeout(this.timerId);
+            this.timerId = null;
+        }
     }
 
 
@@ -229,7 +232,10 @@ class WaitForElements
         "use strict";
 
         if (this.observer !== null)
+        {
             this.observer.disconnect();
+            this.observer = null;
+        }
     }
 
 
@@ -288,8 +294,10 @@ class WaitForElements
             return;
         }
 
-        return new Promise((resolve, reject) => {
+        return (new Promise((resolve, reject) => {
             this._startMatching(resolve, reject);
+        })).finally(() => {
+            this.stop();
         });
     }
 
