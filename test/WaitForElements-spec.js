@@ -685,6 +685,52 @@ describe("_startMatching", function() {
     });
 
 
+    it("skipExisting==false, matching elements show up later, isOngoing=false, timeout=-1", function (done) {
+        this._maindiv.innerHTML = `
+        <span id=span1>span1
+            <div id=interdiv>
+                <span id=span2>
+                    <p id=p1>p1</p>
+                    span2
+                </span>
+             </div>
+            <div id=otherdiv>
+            </div>
+        </span>
+        `;
+        let waiter = new WaitForElements({
+                target: this._maindiv,
+                selectors: [ "#newspan" ],
+                skipExisting: false,
+            });
+        let onTimeoutFn = jasmine.createSpy("onTimeoutFn");
+        let spy_gee = spyOn(waiter, "_getExistingElements").and.callThrough();
+        let spy_hm = spyOn(waiter, "_handleMutations").and.callThrough();
+        let spy_st = spyOn(waiter, "_setupTimeout").and.callThrough();
+        let spy_stop = spyOn(waiter, "stop").and.callThrough();
+        let onMatchFn;
+        onMatchFn = jasmine.createSpy("onMatchFn", (args) => {
+            expect(onMatchFn).toHaveBeenCalledOnceWith([this._maindiv.querySelector("#newspan")]);
+            expect(spy_gee).toHaveBeenCalled();
+            expect(onTimeoutFn).not.toHaveBeenCalled();
+            expect(spy_hm).toHaveBeenCalled();
+            expect(spy_st).not.toHaveBeenCalled();
+            expect(spy_stop).not.toHaveBeenCalled();
+
+            done();
+        }).and.callThrough();
+
+        waiter._startMatching(onMatchFn, onTimeoutFn);
+
+        // trigger a mutation by adding an element
+        window.setTimeout(() => {
+            let newspan = document.createElement("span");
+            newspan.id = "newspan";
+            this._maindiv.append(newspan);
+        }, 0);
+    });
+
+
     it("skipExisting==false, isOngoing=true, timeout=-1", function (done) {
         this._maindiv.innerHTML = `
         <span id=span1>span1
@@ -1102,6 +1148,46 @@ describe("match", function() {
             .toBeResolvedTo(Array.from(this._maindiv.querySelectorAll("span")));
 
         expect(spy_sm).toHaveBeenCalledWith(jasmine.any(Function), jasmine.any(Function));
+    });
+
+
+    it("isOngoing=false, no matches until mutation, returns a Promise resolved with matches", function (done) {
+        //XXX: you are here
+        this._maindiv.innerHTML = `
+        <span id=span1>span1
+            <div id=interdiv>
+                <span id=span2>
+                    <p id=p1>p1</p>
+                    span2
+                </span>
+             </div>
+            <div id=otherdiv>
+            </div>
+        </span>
+        `;
+        let waiter = new WaitForElements({
+                target: this._maindiv,
+                selectors: [ "#newspan" ],
+                isOngoing: false,
+            });
+
+        let spy_sm = spyOn(waiter, "_startMatching").and.callThrough();
+
+        // trigger a mutation by adding an element; must be done after this
+        // function returns so the mutation handler will run
+        window.setTimeout(() => {
+            let newspan = document.createElement("span");
+            newspan.id = "newspan";
+            newspan.textContent = "newspan";
+            this._maindiv.append(newspan);
+        }, 0);
+
+        let p = waiter.match();
+        p.then(v => {
+            expect(v).toEqual(Array.from(this._maindiv.querySelectorAll("#newspan")));
+            expect(spy_sm).toHaveBeenCalledWith(jasmine.any(Function), jasmine.any(Function));
+            done();
+        });
     });
 
 
