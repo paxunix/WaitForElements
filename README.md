@@ -69,3 +69,8 @@ Reference to a function that is called when elements are matched.  Its parameter
 ##### onTimeoutFn
 
 Reference to a function that is called if `options.timeout` is reached before any elements are matched.  Its parameter is an Error object indicating the timeout was reached.
+
+
+### _WaitForElements.stop()_
+
+Silently stop waiting for matches.  No callbacks are invoked.  Any outstanding promise will remain pending.
