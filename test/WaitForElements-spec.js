@@ -650,7 +650,7 @@ describe("_handleMutations", function() {
 describe("_startMatching", function() {
 
 
-    it("skipExisting==false, isOngoing=false, timeout=-1", function () {
+    it("skipExisting==false, matching elements already present, isOngoing=false, timeout=-1", function () {
         this._maindiv.innerHTML = `
         <span id=span1>span1
             <div id=interdiv>
