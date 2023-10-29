@@ -1070,9 +1070,69 @@ describe("_startMatching", function() {
 });     // _startMatching
 
 
-xdescribe("match", function() {
-    xit("xxx", ()=>"");
-});
+describe("match", function() {
+    it("isOngoing=false, returns a Promise resolved with matches", async function () {
+        this._maindiv.innerHTML = `
+        <span id=span1>span1
+            <div id=interdiv>
+                <span id=span2>
+                    <p id=p1>p1</p>
+                    span2
+                </span>
+             </div>
+            <div id=otherdiv>
+            </div>
+        </span>
+        `;
+        let waiter = new WaitForElements({
+                target: this._maindiv,
+                selectors: [ "span" ],
+                isOngoing: false,
+            });
+
+        let spy_sm = spyOn(waiter, "_startMatching").and.callThrough();
+
+        await expectAsync(waiter.match())
+            .toBeResolvedTo(Array.from(this._maindiv.querySelectorAll("span")));
+
+        expect(spy_sm).toHaveBeenCalledWith(jasmine.any(Function), jasmine.any(Function));
+    });
+
+
+    it("isOngoing=false, returns a Promise rejected if no matches by timeout", async function () { await jasmine.clock().withMock(async () => {
+        this._maindiv.innerHTML = `
+        <span id=span1>span1
+            <div id=interdiv>
+                <span id=span2>
+                    <p id=p1>p1</p>
+                    span2
+                </span>
+             </div>
+            <div id=otherdiv>
+            </div>
+        </span>
+        `;
+        let waiter = new WaitForElements({
+                target: this._maindiv,
+                selectors: [ "noelement" ],
+                isOngoing: false,
+                skipExisting: false,
+                timeout: 10000,
+            });
+
+        let spy_sm = spyOn(waiter, "_startMatching").and.callThrough();
+        let spy_cm = spyOn(waiter, "_continueMatching").and.callThrough();
+
+        let p = waiter.match();
+        jasmine.clock().tick(11000);
+
+        expect(spy_sm).toHaveBeenCalledWith(jasmine.any(Function), jasmine.any(Function));
+        expect(spy_cm).not.toHaveBeenCalled();
+
+        await expectAsync(p).toBeRejected();
+    }); // clock mocked
+    });
+});     // match
 
 xdescribe("stop", function() {
     xit("xxx", ()=>"");
