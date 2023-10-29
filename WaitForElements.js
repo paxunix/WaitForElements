@@ -125,9 +125,13 @@ class WaitForElements
             this._filterOutSeenElements(els) :
             els;
 
+        let oldlen = newels.length;
+
         newels = this.options.filter(newels);
 
-        if (this.options.verbose)
+        // only log if we had any to filter to begin with (otherwise it's
+        // just spammy)
+        if (this.options.verbose && oldlen > 0)
             console.log("Elements after applying filter:", newels);
 
         return newels;
