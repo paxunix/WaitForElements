@@ -1152,7 +1152,6 @@ describe("match", function() {
 
 
     it("allowMultipleMatches=false, no matches until mutation, returns a Promise resolved with matches", function (done) {
-        //XXX: you are here
         this._maindiv.innerHTML = `
         <span id=span1>span1
             <div id=interdiv>
