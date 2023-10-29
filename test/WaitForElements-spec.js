@@ -1132,6 +1132,116 @@ describe("match", function() {
         await expectAsync(p).toBeRejected();
     }); // clock mocked
     });
+
+
+    it("isOngoing=true, starts matching no promise returned", function () {
+        // full-on whitebox testing here; I only have to care if
+        // _startMatching is called with the functions I passed.  Everything
+        // beyond that is already tested in _startMatching etc.
+        // So, this just tests a very basic use case.
+        this._maindiv.innerHTML = `
+        <span id=span1>span1
+            <div id=interdiv>
+                <span id=span2>
+                    <p id=p1>p1</p>
+                    span2
+                </span>
+             </div>
+            <div id=otherdiv>
+            </div>
+        </span>
+        `;
+        let waiter = new WaitForElements({
+                target: this._maindiv,
+                selectors: [ "#span1" ],
+                isOngoing: true,
+                skipExisting: false,
+                timeout: 10000,
+            });
+
+        let spy_sm = spyOn(waiter, "_startMatching").and.callThrough();
+        let spy_cm = spyOn(waiter, "_continueMatching").and.callThrough();
+        let spy_st = spyOn(waiter, "_setupTimeout").and.callThrough();
+        let onMatchFn = jasmine.createSpy("onMatchFn");
+        let onTimeoutFn = jasmine.createSpy("onTimeoutFn");
+
+        waiter.match(onMatchFn, onTimeoutFn);
+
+        expect(spy_sm).toHaveBeenCalledWith(onMatchFn, onTimeoutFn);
+        expect(spy_sm).toHaveBeenCalledBefore(spy_cm);
+        expect(spy_cm).toHaveBeenCalledBefore(spy_st);
+        expect(onMatchFn).toHaveBeenCalledWith([this._maindiv.querySelector("#span1")]);
+    });
+
+
+	describe("exceeding timeout", function () {
+
+    beforeEach(function() {
+        jasmine.clock().install();
+    });
+
+    afterEach(function() {
+        jasmine.clock().uninstall();
+    });
+
+    it("isOngoing=true, matches and calls timeoutfn, no promise returned", function (done) {
+
+        // full-on whitebox testing here
+        this._maindiv.innerHTML = `
+        <span id=span1>span1
+            <div id=interdiv>
+                <span id=span2>
+                    <p id=p1>p1</p>
+                    span2
+                </span>
+             </div>
+            <div id=otherdiv>
+            </div>
+        </span>
+        `;
+        let waiter = new WaitForElements({
+                target: this._maindiv,
+                selectors: [ "#newspan" ],
+                isOngoing: true,
+                skipExisting: true,
+                timeout: 10000,
+            });
+
+        let spy_sm = spyOn(waiter, "_startMatching").and.callThrough();
+        let spy_cm = spyOn(waiter, "_continueMatching").and.callThrough();
+        let spy_st = spyOn(waiter, "_setupTimeout").and.callThrough();
+        onTimeoutFn = jasmine.createSpy("onTimeoutFn", () => {
+			expect(onMatchFn).toHaveBeenCalledWith([this._maindiv.querySelector("#newspan")]);
+            expect(onTimeoutFn).toHaveBeenCalledTimes(1);
+
+            done();
+        }).and.callThrough();
+
+        onMatchFn = jasmine.createSpy("onMatchFn", (els) => {
+            // exceed the timeout after detecting a mutation prior to
+            // timeout, thus forcing the timeout to occur
+            jasmine.clock().tick(6000);
+        }).and.callThrough();
+
+        waiter.match(onMatchFn, onTimeoutFn);
+
+        // trigger a mutation by adding an element
+        window.setTimeout(() => {
+            let newspan = document.createElement("span");
+            newspan.id = "newspan";
+            this._maindiv.append(newspan);
+        }, 0);
+
+        jasmine.clock().tick(5000);
+
+        expect(spy_sm).toHaveBeenCalledWith(onMatchFn, onTimeoutFn);
+        expect(spy_sm).toHaveBeenCalledBefore(spy_cm);
+        expect(spy_cm).toHaveBeenCalledBefore(spy_st);
+    });
+
+    });
+
+
 });     // match
 
 xdescribe("stop", function() {
