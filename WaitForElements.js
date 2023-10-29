@@ -241,7 +241,15 @@ class WaitForElements
             let els = this._handleMutations(mutations);
 
             if (els.length > 0)
+            {
                 onMatchFn(els);
+
+                if (!this.options.isOngoing)
+                {
+                    this.stop();
+                    return;
+                }
+            }
         });
 
         this.observer.observe(this.options.target, this.options.observerOptions);
@@ -263,11 +271,16 @@ class WaitForElements
             if (els.length > 0)
             {
                 onMatchFn(els);
+
+                if (!this.options.isOngoing)
+                {
+                    this.stop();
+                    return;
+                }
             }
         }
 
-        if (this.options.isOngoing)
-            this._continueMatching(onMatchFn);
+        this._continueMatching(onMatchFn);
 
         if (this.options.timeout !== -1)
             this._setupTimeout(onTimeoutFn);

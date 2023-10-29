@@ -671,7 +671,7 @@ describe("_startMatching", function() {
                 skipExisting: false,
             });
         let spy_gee = spyOn(waiter, "_getExistingElements").and.callThrough();
-        let spy_cm = spyOn(waiter, "_continueMatching").and.callThrough();
+        let spy_hm = spyOn(waiter, "_handleMutations").and.callThrough();
         let spy_st = spyOn(waiter, "_setupTimeout").and.callThrough();
 
         waiter._startMatching(onMatchFn, onTimeoutFn);
@@ -679,7 +679,7 @@ describe("_startMatching", function() {
         expect(spy_gee).toHaveBeenCalled();
         expect(onMatchFn).toHaveBeenCalledOnceWith(Array.from(this._maindiv.querySelectorAll("span")));
         expect(onTimeoutFn).not.toHaveBeenCalled();
-        expect(spy_cm).not.toHaveBeenCalled();
+        expect(spy_hm).not.toHaveBeenCalled();
         expect(spy_st).not.toHaveBeenCalled();
         expect(waiter.observer).toEqual(null);
     });
@@ -745,9 +745,7 @@ describe("_startMatching", function() {
     });
 
 
-    it("skipExisting==true, isOngoing=false, timeout=-1", function () {
-        // this is an odd use case:  why would you skip existing but not do
-        // ongoing matching???  You'll never get anything.
+    it("skipExisting==true, isOngoing=false, timeout=-1 (wait forever until an matching element shows up)", function () {
         this._maindiv.innerHTML = `
         <span id=span1>span1
             <div id=interdiv>
@@ -770,7 +768,6 @@ describe("_startMatching", function() {
                 isOngoing: false,
             });
         let spy_gee = spyOn(waiter, "_getExistingElements").and.callThrough();
-        let spy_cm = spyOn(waiter, "_continueMatching").and.callThrough();
         let spy_st = spyOn(waiter, "_setupTimeout").and.callThrough();
 
         waiter._startMatching(onMatchFn, onTimeoutFn);
@@ -778,9 +775,10 @@ describe("_startMatching", function() {
         expect(spy_gee).not.toHaveBeenCalled();
         expect(onMatchFn).not.toHaveBeenCalled();
         expect(onTimeoutFn).not.toHaveBeenCalled();
-        expect(spy_cm).not.toHaveBeenCalled();
         expect(spy_st).not.toHaveBeenCalled();
-        expect(waiter.observer).toEqual(null);
+        expect(waiter.observer).not.toEqual(null);
+
+        waiter.stop();
     });
 
 
@@ -854,6 +852,8 @@ describe("_startMatching", function() {
 
 
     it("skipExisting==false, isOngoing=false, exceeding timeout", function () {
+        // this doesn't make sense, since you can never hit the timeout if
+        // there are matching elements in DOM before matching is tried
         this._maindiv.innerHTML = `
         <span id=span1>span1
             <div id=interdiv>
@@ -876,7 +876,7 @@ describe("_startMatching", function() {
                 timeout: 10000,
             });
         let spy_gee = spyOn(waiter, "_getExistingElements").and.callThrough();
-        let spy_cm = spyOn(waiter, "_continueMatching").and.callThrough();
+        let spy_hm = spyOn(waiter, "_handleMutations").and.callThrough();
         let spy_st = spyOn(waiter, "_setupTimeout").and.callThrough();
 
         waiter._startMatching(onMatchFn, onTimeoutFn);
@@ -884,14 +884,16 @@ describe("_startMatching", function() {
         expect(spy_gee).toHaveBeenCalled();
         expect(onMatchFn).toHaveBeenCalledOnceWith(Array.from(this._maindiv.querySelectorAll("span")));
         expect(onTimeoutFn).not.toHaveBeenCalled();
-        expect(spy_cm).not.toHaveBeenCalled();
-        expect(spy_st).toHaveBeenCalled();
+        expect(spy_hm).not.toHaveBeenCalled();
+        expect(spy_st).not.toHaveBeenCalled();
         expect(waiter.observer).toEqual(null);
 
         // exceed timeout
         jasmine.clock().tick(11000);
 
-        expect(onTimeoutFn).toHaveBeenCalledTimes(1);
+        // timeout was already killed when the first matches were found,
+        // before observer started
+        expect(onTimeoutFn).toHaveBeenCalledTimes(0);
     });
 
 
@@ -987,7 +989,7 @@ describe("_startMatching", function() {
                 timeout: 10000,
             });
         let spy_gee = spyOn(waiter, "_getExistingElements").and.callThrough();
-        let spy_cm = spyOn(waiter, "_continueMatching").and.callThrough();
+        let spy_hm = spyOn(waiter, "_handleMutations").and.callThrough();
         let spy_st = spyOn(waiter, "_setupTimeout").and.callThrough();
 
         waiter._startMatching(onMatchFn, onTimeoutFn);
@@ -995,9 +997,9 @@ describe("_startMatching", function() {
         expect(spy_gee).not.toHaveBeenCalled();
         expect(onMatchFn).not.toHaveBeenCalled();
         expect(onTimeoutFn).not.toHaveBeenCalled();
-        expect(spy_cm).not.toHaveBeenCalled();
+        expect(spy_hm).not.toHaveBeenCalled();
         expect(spy_st).toHaveBeenCalled();
-        expect(waiter.observer).toEqual(null);
+        expect(waiter.observer).not.toEqual(null);
 
         jasmine.clock().tick(11000);
         expect(onTimeoutFn).toHaveBeenCalled();
@@ -1176,13 +1178,11 @@ describe("match", function() {
             });
 
         let spy_sm = spyOn(waiter, "_startMatching").and.callThrough();
-        let spy_cm = spyOn(waiter, "_continueMatching").and.callThrough();
 
         let p = waiter.match();
         jasmine.clock().tick(11000);
 
         expect(spy_sm).toHaveBeenCalledWith(jasmine.any(Function), jasmine.any(Function));
-        expect(spy_cm).not.toHaveBeenCalled();
 
         await expectAsync(p).toBeRejected();
 
