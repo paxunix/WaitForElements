@@ -1,3 +1,6 @@
+/* jshint esversion: 11, browser: true */
+/* globals describe, beforeAll, afterEach, it, expect, WaitForElements, jasmine, beforeEach, spyOn, expectAsync */
+
 describe("WaitForElements", function() {
 
 
@@ -804,7 +807,6 @@ describe("_startMatching", function() {
             </div>
         </span>
         `;
-        let argsLists = [];
         let onMatchFn = jasmine.createSpy("onMatchFn");
         let onTimeoutFn = jasmine.createSpy("onTimeoutFn");
         let waiter = new WaitForElements({
@@ -1024,7 +1026,6 @@ describe("_startMatching", function() {
             </div>
         </span>
         `;
-        let argsLists = [];
         let onMatchFn = jasmine.createSpy("onMatchFn");
         let onTimeoutFn = jasmine.createSpy("onTimeoutFn");
         let waiter = new WaitForElements({
@@ -1302,6 +1303,7 @@ describe("match", function() {
         let spy_sm = spyOn(waiter, "_startMatching").and.callThrough();
         let spy_cm = spyOn(waiter, "_continueMatching").and.callThrough();
         let spy_st = spyOn(waiter, "_setupTimeout").and.callThrough();
+        let onTimeoutFn;
         onTimeoutFn = jasmine.createSpy("onTimeoutFn", () => {
             expect(onMatchFn).toHaveBeenCalledWith([this._maindiv.querySelector("#newspan")]);
             expect(onTimeoutFn).toHaveBeenCalledTimes(1);
@@ -1311,6 +1313,7 @@ describe("match", function() {
             done();
         }).and.callThrough();
 
+        let onMatchFn;
         onMatchFn = jasmine.createSpy("onMatchFn", (els) => {
             // exceed the timeout after detecting a mutation prior to
             // timeout, thus forcing the timeout to occur
