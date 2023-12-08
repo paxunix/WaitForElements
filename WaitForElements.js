@@ -145,7 +145,8 @@ class WaitForElements
         let els = WaitForElements._getElementsMatchingSelectors([this.options.target], this.options.selectors);
 
         if (this.options.verbose)
-            console.log("Found existing elements matching selectors:", els);
+            if (els.length > 0)
+                console.log("Found existing elements matching selectors:", els);
 
         els = this._applyFilters(els);
 
