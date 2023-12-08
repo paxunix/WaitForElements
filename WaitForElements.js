@@ -3,7 +3,7 @@
 class WaitForElements
 {
 
-    static _version = "20231029";
+    static _version = "20231207";
 
 
     constructor(options)
