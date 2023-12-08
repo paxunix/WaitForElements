@@ -47,7 +47,7 @@ Default is to observe all child nodes, subtrees, attributes, and character data 
 
 #### options.verbose
 
-Default=`false`.  Log diagnostic information to the console.
+Default=`false`.  Log diagnostic information to the console.  If you want the actual MutationRecords to also be logged, set this to 2 (otherwise it can get very spammy).
 
 
 ### _WaitForElements.match(onMatchFn, onTimeoutFn)_

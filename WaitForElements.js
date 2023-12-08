@@ -180,7 +180,7 @@ class WaitForElements
     {
         "use strict";
 
-        if (this.options.verbose)
+        if (this.options.verbose == 2)
         {
             console.log("Mutations:", mutations);
         }
