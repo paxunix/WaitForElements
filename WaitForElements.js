@@ -3,7 +3,7 @@
 class WaitForElements
 {
 
-    static _version = "2.0.1";
+    static _version = "2.0.2";
 
 
     constructor(options)
@@ -207,6 +207,12 @@ class WaitForElements
         "use strict";
 
         this.timerId = window.setTimeout(() => {
+
+            if (this.options.verbose)
+            {
+                console.log(`Timeout ${this.options.timeout} reached for selectors:`, this.options.selectors);
+            }
+
             this.stop();
 
             onTimeoutFn();
@@ -232,6 +238,11 @@ class WaitForElements
 
         if (this.observer !== null)
         {
+            if (this.options.verbose)
+            {
+                console.log("Disconnecting observer for selectors:", this.options.selectors);
+            }
+
             this.observer.disconnect();
             this.observer = null;
         }
