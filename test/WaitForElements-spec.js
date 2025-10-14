@@ -167,7 +167,7 @@ describe("_normalizeOptions", function() {
             .toEqual({
                 target: document.body,
                 selectors: [],
-                filter: jasmine.any(Function),
+                filter: null,
                 allowMultipleMatches: false,
                 onlyOnce: false,
                 skipExisting: false,
@@ -190,7 +190,7 @@ describe("_normalizeOptions", function() {
             .toEqual({
                 target: document.body,
                 selectors: [],
-                filter: jasmine.any(Function),
+                filter: null,
                 allowMultipleMatches: false,
                 onlyOnce: false,
                 skipExisting: false,
@@ -213,7 +213,7 @@ describe("_normalizeOptions", function() {
             .toEqual({
                 target: document.body,
                 selectors: [],
-                filter: jasmine.any(Function),
+                filter: null,
                 onlyOnce: false,
                 allowMultipleMatches: false,
                 skipExisting: false,
@@ -229,12 +229,6 @@ describe("_normalizeOptions", function() {
                 verbose: false,
             });
         });
-
-
-    it("default filter function returns its argument", function() {
-        let f = WaitForElements._normalizeOptions({}).filter;
-        expect(f([42])).toEqual([42]);
-    });
 
 
 });
@@ -286,7 +280,7 @@ describe("constructor", function() {
                 options: {
                     target: document.body,
                     selectors: [],
-                    filter: jasmine.any(Function),
+                    filter: null,
                     allowMultipleMatches: false,
                     onlyOnce: false,
                     skipExisting: false,

@@ -3,7 +3,7 @@
 class WaitForElements
 {
 
-    static _version = "2.0";
+    static _version = "2.0.1";
 
 
     constructor(options)
@@ -70,7 +70,7 @@ class WaitForElements
         let builtinDefaults = {
             target: document.body,
             selectors: [],
-            filter: ((el) => el),
+            filter: null,
             allowMultipleMatches: false,
             onlyOnce: false,
             skipExisting: false,
@@ -121,6 +121,9 @@ class WaitForElements
     {
         "use strict";
 
+        if (!this.options.filter)
+            return els;
+
         let newels = this.options.onlyOnce ?
             this._filterOutSeenElements(els) :
             els;
@@ -129,10 +132,7 @@ class WaitForElements
 
         newels = this.options.filter(newels);
 
-        // only log if we had any to filter to begin with (otherwise it's
-        // just spammy)
-        if (this.options.verbose && oldlen > 0)
-            console.log("Elements after applying filter:", newels);
+        console.log("Elements after applying filter:", newels);
 
         return newels;
     }
