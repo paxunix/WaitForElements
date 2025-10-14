@@ -326,7 +326,7 @@ describe("_filterOutSeenElements", function() {
 });
 
 
-describe("_getExistingElements", function() {
+describe("_getElementsFiltered", function() {
 
 
     it("returns existing elements that have not been matched", function() {
@@ -352,46 +352,12 @@ describe("_getExistingElements", function() {
             selectors: "span",
         });
 
-        expect(waiter._getExistingElements())
+        expect(waiter._getElementsFiltered())
             .toEqual([
                 this._maindiv.querySelector("#span1"),
                 this._maindiv.querySelector("#span2"),
                 this._maindiv.querySelector("#span3"),
             ]);
-    });
-
-
-    it("if onlyOnce is true, only returns existing elements that have not been matched", function() {
-        this._maindiv.innerHTML = `
-        <span id=span1>span1
-            <div id=interdiv>
-                <span id=span2>
-                    <p id=p1>p1</p>
-                    span2
-                </span>
-             </div>
-            <div id=otherdiv>
-            </div>
-        </span>
-        `;
-
-        let waiter = new WaitForElements({
-            target: this._maindiv,
-            selectors: "span",
-            onlyOnce: true,
-        });
-
-        expect(waiter._getExistingElements())
-            .toEqual([
-                this._maindiv.querySelector("#span1"),
-                this._maindiv.querySelector("#span2"),
-            ]);
-
-        let newspan = document.createElement("span");
-        this._maindiv.append(newspan);
-
-        expect(waiter._getExistingElements())
-            .toEqual([ newspan ]);
     });
 
 
@@ -416,7 +382,7 @@ describe("_getExistingElements", function() {
             filter: els => els.filter(e => e.id !== "span2"),
         });
 
-        expect(waiter._getExistingElements())
+        expect(waiter._getElementsFiltered())
             .toEqual([
                 this._maindiv.querySelector("#span1"),
                 this._maindiv.querySelector("#span3"),
@@ -445,7 +411,7 @@ describe("_getExistingElements", function() {
             filter: els => els.filter(e => e.id !== "span3"),
         });
 
-        expect(waiter._getExistingElements())
+        expect(waiter._getElementsFiltered())
             .toEqual([
                 this._maindiv.querySelector("#span1"),
                 this._maindiv.querySelector("#span2"),
@@ -455,7 +421,7 @@ describe("_getExistingElements", function() {
         newspan.id = "span3";
         this._maindiv.append(newspan);
 
-        expect(waiter._getExistingElements())
+        expect(waiter._getElementsFiltered())
             .toEqual([ ]);
     });
 
@@ -479,7 +445,7 @@ describe("_getExistingElements", function() {
             selectors: [ "span", "#span1", "#span2" ]
         });
 
-        expect(waiter._getExistingElements())
+        expect(waiter._getElementsFiltered())
             .toEqual([
                 this._maindiv.querySelector("#span1"),
                 this._maindiv.querySelector("#span2"),
@@ -673,7 +639,7 @@ describe("_startMatching", function() {
                 selectors: [ "span" ],
                 skipExisting: false,
             });
-        let spy_gee = spyOn(waiter, "_getExistingElements").and.callThrough();
+        let spy_gee = spyOn(waiter, "_getElementsFiltered").and.callThrough();
         let spy_hm = spyOn(waiter, "_handleMutations").and.callThrough();
         let spy_st = spyOn(waiter, "_setupTimeout").and.callThrough();
 
@@ -707,7 +673,7 @@ describe("_startMatching", function() {
                 skipExisting: false,
             });
         let onTimeoutFn = jasmine.createSpy("onTimeoutFn");
-        let spy_gee = spyOn(waiter, "_getExistingElements").and.callThrough();
+        let spy_gee = spyOn(waiter, "_getElementsFiltered").and.callThrough();
         let spy_hm = spyOn(waiter, "_handleMutations").and.callThrough();
         let spy_st = spyOn(waiter, "_setupTimeout").and.callThrough();
         let spy_stop = spyOn(waiter, "stop").and.callThrough();
@@ -773,7 +739,7 @@ describe("_startMatching", function() {
                 skipExisting: false,
                 allowMultipleMatches: true,
             });
-        let spy_gee = spyOn(waiter, "_getExistingElements").and.callThrough();
+        let spy_gee = spyOn(waiter, "_getElementsFiltered").and.callThrough();
         let spy_cm = spyOn(waiter, "_continueMatching").and.callThrough();
         let spy_st = spyOn(waiter, "_setupTimeout").and.callThrough();
 
@@ -815,7 +781,7 @@ describe("_startMatching", function() {
                 skipExisting: true,
                 allowMultipleMatches: false,
             });
-        let spy_gee = spyOn(waiter, "_getExistingElements").and.callThrough();
+        let spy_gee = spyOn(waiter, "_getElementsFiltered").and.callThrough();
         let spy_st = spyOn(waiter, "_setupTimeout").and.callThrough();
 
         waiter._startMatching(onMatchFn, onTimeoutFn);
@@ -866,7 +832,7 @@ describe("_startMatching", function() {
                 skipExisting: true,
                 allowMultipleMatches: true,
             });
-        let spy_gee = spyOn(waiter, "_getExistingElements").and.callThrough();
+        let spy_gee = spyOn(waiter, "_getElementsFiltered").and.callThrough();
         let spy_cm = spyOn(waiter, "_continueMatching").and.callThrough();
         let spy_st = spyOn(waiter, "_setupTimeout").and.callThrough();
 
@@ -923,7 +889,7 @@ describe("_startMatching", function() {
                 allowMultipleMatches: false,
                 timeout: 10000,
             });
-        let spy_gee = spyOn(waiter, "_getExistingElements").and.callThrough();
+        let spy_gee = spyOn(waiter, "_getElementsFiltered").and.callThrough();
         let spy_hm = spyOn(waiter, "_handleMutations").and.callThrough();
         let spy_st = spyOn(waiter, "_setupTimeout").and.callThrough();
 
@@ -982,7 +948,7 @@ describe("_startMatching", function() {
                 allowMultipleMatches: true,
                 timeout: 10000,
             });
-        let spy_gee = spyOn(waiter, "_getExistingElements").and.callThrough();
+        let spy_gee = spyOn(waiter, "_getElementsFiltered").and.callThrough();
         let spy_cm = spyOn(waiter, "_continueMatching").and.callThrough();
         let spy_st = spyOn(waiter, "_setupTimeout").and.callThrough();
         spy_do = spyOn(waiter, "_disconnectObserver").and.callThrough();
@@ -1035,7 +1001,7 @@ describe("_startMatching", function() {
                 allowMultipleMatches: false,
                 timeout: 10000,
             });
-        let spy_gee = spyOn(waiter, "_getExistingElements").and.callThrough();
+        let spy_gee = spyOn(waiter, "_getElementsFiltered").and.callThrough();
         let spy_hm = spyOn(waiter, "_handleMutations").and.callThrough();
         let spy_st = spyOn(waiter, "_setupTimeout").and.callThrough();
 
@@ -1090,7 +1056,7 @@ describe("_startMatching", function() {
                 allowMultipleMatches: true,
                 timeout: 10000,
             });
-        let spy_gee = spyOn(waiter, "_getExistingElements").and.callThrough();
+        let spy_gee = spyOn(waiter, "_getElementsFiltered").and.callThrough();
         let spy_cm = spyOn(waiter, "_continueMatching").and.callThrough();
         let spy_st = spyOn(waiter, "_setupTimeout").and.callThrough();
         spy_do = spyOn(waiter, "_disconnectObserver").and.callThrough();
