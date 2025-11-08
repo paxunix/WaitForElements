@@ -132,7 +132,8 @@ class WaitForElements
 
         newels = this.options.filter(newels);
 
-        console.log("Elements after applying filter:", newels);
+        if (this.options.verbose)
+            console.log("Elements after applying filter:", newels);
 
         return newels;
     }
