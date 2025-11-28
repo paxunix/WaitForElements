@@ -28,3 +28,13 @@ jasmine.js
 you only need the lib/ subdir.
 
 To run the tests, open the test/SpecRunner.html file in your browser.
+
+
+# Releasing
+
+git tag --annotate <semantic-version>
+
+git push --follow-tags
+
+gh release create <semantic-version> --notes <Release notes>
+
