@@ -1,0 +1,14 @@
+{
+  "name": "wait-for-elements",
+  "version": "0.0.0",
+  "private": true,
+  "description": "WaitForElements.js test runner",
+  "devDependencies": {
+    "jasmine": "^5.12.0",
+    "jasmine-browser-runner": "^2.2.0"
+  },
+  "scripts": {
+    "test": "jasmine-browser-runner runSpecs --config=jasmine-browser.json",
+    "test:browser": "jasmine-browser-runner serve --config=jasmine-browser-ui.json"
+  }
+}
