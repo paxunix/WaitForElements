@@ -159,6 +159,137 @@ describe("_getElementsFromElementToRoot", function() {
 });
 
 
+describe("visibility helpers", function() {
+
+
+    it("checkVisibility returns false for non-elements", function() {
+        expect(WaitForElements.checkVisibility("nope")).toBeFalse();
+    });
+
+
+    it("checkVisibility uses element.checkVisibility when available", function() {
+        let el = document.createElement("div");
+        el.checkVisibility = () => false;
+        let spy_iv = spyOn(WaitForElements, "isInViewport").and.returnValue(true);
+
+        expect(WaitForElements.checkVisibility(el)).toBeFalse();
+        expect(spy_iv).toHaveBeenCalledWith(el, { allowPartialInViewport: true });
+    });
+
+
+    it("checkVisibility passes allowPartialInViewport to viewport check", function() {
+        let el = document.createElement("div");
+        el.checkVisibility = () => true;
+        let spy_iv = spyOn(WaitForElements, "isInViewport").and.returnValue(true);
+
+        expect(WaitForElements.checkVisibility(el, false)).toBeTrue();
+        expect(spy_iv).toHaveBeenCalledWith(el, { allowPartialInViewport: false });
+    });
+
+
+    it("isInViewport returns true when element intersects viewport", function() {
+        let el = document.createElement("div");
+        spyOn(el, "getBoundingClientRect").and.returnValue({
+            top: 0,
+            left: 0,
+            right: 50,
+            bottom: 50,
+        });
+
+        let originalWidth = window.innerWidth;
+        let originalHeight = window.innerHeight;
+        window.innerWidth = 100;
+        window.innerHeight = 100;
+
+        expect(WaitForElements.isInViewport(el)).toBeTrue();
+
+        window.innerWidth = originalWidth;
+        window.innerHeight = originalHeight;
+    });
+
+
+    it("isInViewport returns false when element is outside viewport", function() {
+        let el = document.createElement("div");
+        spyOn(el, "getBoundingClientRect").and.returnValue({
+            top: 200,
+            left: 200,
+            right: 250,
+            bottom: 250,
+        });
+
+        let originalWidth = window.innerWidth;
+        let originalHeight = window.innerHeight;
+        window.innerWidth = 100;
+        window.innerHeight = 100;
+
+        expect(WaitForElements.isInViewport(el)).toBeFalse();
+
+        window.innerWidth = originalWidth;
+        window.innerHeight = originalHeight;
+    });
+
+
+    it("isInViewport uses root bounds when provided", function() {
+        let el = document.createElement("div");
+        let root = document.createElement("div");
+        spyOn(el, "getBoundingClientRect").and.returnValue({
+            top: 40,
+            left: 40,
+            right: 60,
+            bottom: 60,
+        });
+        spyOn(root, "getBoundingClientRect").and.returnValue({
+            top: 0,
+            left: 0,
+            right: 50,
+            bottom: 50,
+        });
+
+        expect(WaitForElements.isInViewport(el, { root })).toBeTrue();
+    });
+
+
+    it("isInViewport requires full visibility when allowPartialInViewport is false", function() {
+        let el = document.createElement("div");
+        spyOn(el, "getBoundingClientRect").and.returnValue({
+            top: -10,
+            left: 0,
+            right: 50,
+            bottom: 50,
+        });
+
+        let originalWidth = window.innerWidth;
+        let originalHeight = window.innerHeight;
+        window.innerWidth = 100;
+        window.innerHeight = 100;
+
+        expect(WaitForElements.isInViewport(el, { allowPartialInViewport: true })).toBeTrue();
+        expect(WaitForElements.isInViewport(el, { allowPartialInViewport: false })).toBeFalse();
+
+        window.innerWidth = originalWidth;
+        window.innerHeight = originalHeight;
+    });
+
+
+    it("isVisibleDefault requires both checkVisibility and isInViewport", function() {
+        let el = document.createElement("div");
+        let originalCheckVisibility = WaitForElements.checkVisibility;
+        let spy_cv = spyOn(WaitForElements, "checkVisibility").and.returnValue(false);
+
+        expect(WaitForElements.isVisibleDefault(el)).toBeFalse();
+        expect(spy_cv).toHaveBeenCalledWith(el, true, undefined);
+
+        spy_cv.and.returnValue(true);
+
+        expect(WaitForElements.isVisibleDefault(el)).toBeTrue();
+
+        WaitForElements.checkVisibility = originalCheckVisibility;
+    });
+
+
+});
+
+
 describe("_normalizeOptions", function() {
 
 

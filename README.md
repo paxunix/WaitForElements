@@ -74,3 +74,20 @@ Reference to a function that is called if `options.timeout` is reached before an
 ### _WaitForElements.stop()_
 
 Silently stop waiting for matches.  No callbacks are invoked.  Any outstanding promise will remain pending.
+
+
+## Static helpers
+
+These helpers are available for callers who want to compose their own filter functions.
+
+### _WaitForElements.checkVisibility(element, allowPartialInViewport = true, options)_
+
+Returns `true` if the element passes `element.checkVisibility()` and is within the viewport.  If `allowPartialInViewport` is true, partial intersection with the viewport is sufficient; otherwise the element must be fully within the viewport.
+
+### _WaitForElements.isInViewport(element, options)_
+
+Returns `true` if the element's bounding box intersects the viewport (or the bounding box of `options.root` when provided).  If `options.allowPartialInViewport` is false, the element must be fully within the viewport.
+
+### _WaitForElements.isVisibleDefault(element, options)_
+
+Returns `true` if `checkVisibility()` passes.  This is the default behavior intended for visibility checks.
