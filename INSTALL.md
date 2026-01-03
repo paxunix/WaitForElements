@@ -4,30 +4,26 @@ To use it, include the WaitForElements.js in a <script> tag.
 
 # DEVELOPMENT
 
-To run the tests, you'll need to install jasmine-5.12.0 into the local
-jasmine/ directory:
+Install the latest Jasmine runner dependencies:
 
 ```
-ls -1R jasmine
-jasmine:
-lib
-MIT.LICENSE
-
-jasmine/lib:
-jasmine-5.12.0
-
-jasmine/lib/jasmine-5.1.1:
-boot0.js
-boot1.js
-jasmine.css
-jasmine_favicon.png
-jasmine-html.js
-jasmine.js
+npm install
 ```
 
-you only need the lib/ subdir.
+Run the headless Jasmine suite from the command line:
 
-To run the tests, open the test/SpecRunner.html file in your browser.
+```
+npm test
+```
+
+Run the Jasmine suite in a visible browser window:
+
+```
+npm run test:browser
+```
+
+You can also open `test/SpecRunner.html` directly in a browser once
+dependencies are installed.
 
 
 # Releasing
@@ -37,4 +33,3 @@ git tag --annotate <semantic-version>
 git push --follow-tags
 
 gh release create <semantic-version> --notes <Release notes>
-
