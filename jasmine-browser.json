@@ -9,7 +9,7 @@
   ],
   "helpers": [],
   "browser": {
-    "name": "chrome",
+    "name": "headlessChrome",
     "headless": true
   }
 }
