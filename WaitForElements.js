@@ -63,7 +63,7 @@ class WaitForElements
     }
 
 
-    static checkVisibility(el, allowPartialInViewport = true, options)
+    static checkVisibility(el, options)
     {
         "use strict";
 
@@ -71,14 +71,11 @@ class WaitForElements
             return false;
 
         return Boolean(el.checkVisibility())
-            && WaitForElements.isInViewport(el, {
-                ...options,
-                allowPartialInViewport,
-            });
+            && WaitForElements.isOverlappingRootBounds(el, options);
     }
 
 
-    static isInViewport(el, options)
+    static isOverlappingRootBounds(el, options)
     {
         "use strict";
 
@@ -111,15 +108,19 @@ class WaitForElements
     }
 
 
+    static isInViewport(el, options)
+    {
+        "use strict";
+
+        return WaitForElements.isOverlappingRootBounds(el, options);
+    }
+
+
     static isVisibleDefault(el, options)
     {
         "use strict";
 
-        return WaitForElements.checkVisibility(
-            el,
-            options?.allowPartialInViewport ?? true,
-            options
-        );
+        return WaitForElements.checkVisibility(el, options);
     }
 
 

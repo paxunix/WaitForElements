@@ -170,19 +170,19 @@ describe("visibility helpers", function() {
     it("checkVisibility uses element.checkVisibility when available", function() {
         let el = document.createElement("div");
         el.checkVisibility = () => false;
-        let spy_iv = spyOn(WaitForElements, "isInViewport").and.returnValue(true);
+        let spy_iv = spyOn(WaitForElements, "isOverlappingRootBounds").and.returnValue(true);
 
         expect(WaitForElements.checkVisibility(el)).toBeFalse();
-        expect(spy_iv).toHaveBeenCalledWith(el, { allowPartialInViewport: true });
+        expect(spy_iv).toHaveBeenCalledWith(el, undefined);
     });
 
 
     it("checkVisibility passes allowPartialInViewport to viewport check", function() {
         let el = document.createElement("div");
         el.checkVisibility = () => true;
-        let spy_iv = spyOn(WaitForElements, "isInViewport").and.returnValue(true);
+        let spy_iv = spyOn(WaitForElements, "isOverlappingRootBounds").and.returnValue(true);
 
-        expect(WaitForElements.checkVisibility(el, false)).toBeTrue();
+        expect(WaitForElements.checkVisibility(el, { allowPartialInViewport: false })).toBeTrue();
         expect(spy_iv).toHaveBeenCalledWith(el, { allowPartialInViewport: false });
     });
 
@@ -201,6 +201,7 @@ describe("visibility helpers", function() {
         window.innerWidth = 100;
         window.innerHeight = 100;
 
+        expect(WaitForElements.isOverlappingRootBounds(el)).toBeTrue();
         expect(WaitForElements.isInViewport(el)).toBeTrue();
 
         window.innerWidth = originalWidth;
@@ -222,6 +223,7 @@ describe("visibility helpers", function() {
         window.innerWidth = 100;
         window.innerHeight = 100;
 
+        expect(WaitForElements.isOverlappingRootBounds(el)).toBeFalse();
         expect(WaitForElements.isInViewport(el)).toBeFalse();
 
         window.innerWidth = originalWidth;
@@ -245,7 +247,7 @@ describe("visibility helpers", function() {
             bottom: 50,
         });
 
-        expect(WaitForElements.isInViewport(el, { root })).toBeTrue();
+        expect(WaitForElements.isOverlappingRootBounds(el, { root })).toBeTrue();
     });
 
 
@@ -263,8 +265,8 @@ describe("visibility helpers", function() {
         window.innerWidth = 100;
         window.innerHeight = 100;
 
-        expect(WaitForElements.isInViewport(el, { allowPartialInViewport: true })).toBeTrue();
-        expect(WaitForElements.isInViewport(el, { allowPartialInViewport: false })).toBeFalse();
+        expect(WaitForElements.isOverlappingRootBounds(el, { allowPartialInViewport: true })).toBeTrue();
+        expect(WaitForElements.isOverlappingRootBounds(el, { allowPartialInViewport: false })).toBeFalse();
 
         window.innerWidth = originalWidth;
         window.innerHeight = originalHeight;
@@ -277,7 +279,7 @@ describe("visibility helpers", function() {
         let spy_cv = spyOn(WaitForElements, "checkVisibility").and.returnValue(false);
 
         expect(WaitForElements.isVisibleDefault(el)).toBeFalse();
-        expect(spy_cv).toHaveBeenCalledWith(el, true, undefined);
+        expect(spy_cv).toHaveBeenCalledWith(el, undefined);
 
         spy_cv.and.returnValue(true);
 

@@ -80,13 +80,17 @@ Silently stop waiting for matches.  No callbacks are invoked.  Any outstanding p
 
 These helpers are available for callers who want to compose their own filter functions.
 
-### _WaitForElements.checkVisibility(element, allowPartialInViewport = true, options)_
+### _WaitForElements.checkVisibility(element, options)_
 
-Returns `true` if the element passes `element.checkVisibility()` and is within the viewport.  If `allowPartialInViewport` is true, partial intersection with the viewport is sufficient; otherwise the element must be fully within the viewport.
+Returns `true` if the element passes `element.checkVisibility()` and overlaps the root bounds.  If `options.root` is provided, the element is tested against that root element's bounding box; otherwise the window viewport is used.  If `options.allowPartialInViewport` is false, the element must be fully within those bounds.
+
+### _WaitForElements.isOverlappingRootBounds(element, options)_
+
+Returns `true` if the element's bounding box intersects the root bounds.  If `options.root` is provided, the root bounds are that element's bounding box; otherwise the window viewport is used.  If `options.allowPartialInViewport` is false, the element must be fully within the bounds.
 
 ### _WaitForElements.isInViewport(element, options)_
 
-Returns `true` if the element's bounding box intersects the viewport (or the bounding box of `options.root` when provided).  If `options.allowPartialInViewport` is false, the element must be fully within the viewport.
+Alias for `WaitForElements.isOverlappingRootBounds`.
 
 ### _WaitForElements.isVisibleDefault(element, options)_
 
