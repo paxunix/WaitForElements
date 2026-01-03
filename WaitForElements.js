@@ -63,6 +63,67 @@ class WaitForElements
     }
 
 
+    static checkVisibility(el, options)
+    {
+        "use strict";
+
+        if (!(el instanceof Element))
+            return false;
+
+        return Boolean(el.checkVisibility())
+            && WaitForElements.isOverlappingRootBounds(el, options);
+    }
+
+
+    static isOverlappingRootBounds(el, options)
+    {
+        "use strict";
+
+        if (!(el instanceof Element))
+            return false;
+
+        let rect = el.getBoundingClientRect();
+        let rootRect = null;
+
+        if (options?.root instanceof Element)
+            rootRect = options.root.getBoundingClientRect();
+
+        let viewportTop = rootRect ? rootRect.top : 0;
+        let viewportLeft = rootRect ? rootRect.left : 0;
+        let viewportRight = rootRect ? rootRect.right : window.innerWidth;
+        let viewportBottom = rootRect ? rootRect.bottom : window.innerHeight;
+
+        if (options?.allowPartialInViewport ?? true)
+        {
+            return rect.bottom > viewportTop
+                && rect.top < viewportBottom
+                && rect.right > viewportLeft
+                && rect.left < viewportRight;
+        }
+
+        return rect.top >= viewportTop
+            && rect.bottom <= viewportBottom
+            && rect.left >= viewportLeft
+            && rect.right <= viewportRight;
+    }
+
+
+    static isInViewport(el, options)
+    {
+        "use strict";
+
+        return WaitForElements.isOverlappingRootBounds(el, options);
+    }
+
+
+    static isVisibleDefault(el, options)
+    {
+        "use strict";
+
+        return WaitForElements.checkVisibility(el, options);
+    }
+
+
     static _normalizeOptions(options, defaults)
     {
         "use strict";
