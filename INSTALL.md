@@ -4,9 +4,11 @@ To use it, include the WaitForElements.js in a <script> tag.
 
 # DEVELOPMENT
 
-Install the latest Jasmine runner dependencies:
+Install Node via nvm, then install the latest Jasmine runner dependencies:
 
 ```
+nvm install --lts
+nvm use --lts
 npm install
 ```
 
