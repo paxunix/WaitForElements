@@ -39,7 +39,11 @@ Default=`-1`.  The promise is rejected or match()'s `onTimeoutFn` is called if n
 
 #### options.filter
 
-Default = no-op (no filtering).  Function that takes an array of elements that match `options.selectors` and returns a new (possibly empty) array of elements.  If the returned array is empty, waiting continues (if the timeout permits).  Otherwise, the promise is resolved or match()'s `onMatchFn` is called with the returned array of unique elements.
+Default = no-op (no filtering).  Function that takes an array of elements that match `options.selectors` and returns a new (possibly empty) array of elements.  Elements passed to `filter` are already present in the DOM and have already met any visibility criteria.  The filter exists only to modify or narrow the matched elements that would otherwise be returned.  If the returned array is empty, waiting continues (if the timeout permits).  Otherwise, the promise is resolved or match()'s `onMatchFn` is called with the returned array of unique elements.
+
+#### options.visibility
+
+Default=null.  If provided, matched elements must also intersect the viewport (rooted at `options.target`) via IntersectionObserver before being returned or resolved.  The object is passed directly to the IntersectionObserver (with `root` set to `options.target`).
 
 #### options.observerOptions
 
@@ -74,3 +78,24 @@ Reference to a function that is called if `options.timeout` is reached before an
 ### _WaitForElements.stop()_
 
 Silently stop waiting for matches.  No callbacks are invoked.  Any outstanding promise will remain pending.
+
+
+## Static helpers
+
+These helpers are available for callers who want to compose their own filter functions.
+
+### _WaitForElements.checkVisibility(element, options)_
+
+Returns `true` if the element passes `element.checkVisibility()` and overlaps the root bounds.  If `options.root` is provided, the element is tested against that root element's bounding box; otherwise the window viewport is used.  If `options.allowPartialInViewport` is false, the element must be fully within those bounds.
+
+### _WaitForElements.isOverlappingRootBounds(element, options)_
+
+Returns `true` if the element's bounding box intersects the root bounds.  If `options.root` is provided, the root bounds are that element's bounding box; otherwise the window viewport is used.  If `options.allowPartialInViewport` is false, the element must be fully within the bounds.
+
+### _WaitForElements.isInViewport(element, options)_
+
+Alias for `WaitForElements.isOverlappingRootBounds`.
+
+### _WaitForElements.isVisibleDefault(element, options)_
+
+Returns `true` if `checkVisibility()` passes.  This is the default behavior intended for visibility checks.

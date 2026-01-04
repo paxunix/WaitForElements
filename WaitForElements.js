@@ -13,6 +13,8 @@ class WaitForElements
         this.options = WaitForElements._normalizeOptions(options ?? {});
         this.seen = new Map();
         this.observer = null;
+        this.visibilityObserver = null;
+        this.visibilityPending = new Map();
         this.timerId = null;
     }
 
@@ -63,6 +65,67 @@ class WaitForElements
     }
 
 
+    static checkVisibility(el, options)
+    {
+        "use strict";
+
+        if (!(el instanceof Element))
+            return false;
+
+        return Boolean(el.checkVisibility())
+            && WaitForElements.isOverlappingRootBounds(el, options);
+    }
+
+
+    static isOverlappingRootBounds(el, options)
+    {
+        "use strict";
+
+        if (!(el instanceof Element))
+            return false;
+
+        let rect = el.getBoundingClientRect();
+        let rootRect = null;
+
+        if (options?.root instanceof Element)
+            rootRect = options.root.getBoundingClientRect();
+
+        let viewportTop = rootRect ? rootRect.top : 0;
+        let viewportLeft = rootRect ? rootRect.left : 0;
+        let viewportRight = rootRect ? rootRect.right : window.innerWidth;
+        let viewportBottom = rootRect ? rootRect.bottom : window.innerHeight;
+
+        if ((options?.threshold ?? 0) < 1)
+        {
+            return rect.bottom > viewportTop
+                && rect.top < viewportBottom
+                && rect.right > viewportLeft
+                && rect.left < viewportRight;
+        }
+
+        return rect.top >= viewportTop
+            && rect.bottom <= viewportBottom
+            && rect.left >= viewportLeft
+            && rect.right <= viewportRight;
+    }
+
+
+    static isInViewport(el, options)
+    {
+        "use strict";
+
+        return WaitForElements.isOverlappingRootBounds(el, options);
+    }
+
+
+    static isVisibleDefault(el, options)
+    {
+        "use strict";
+
+        return WaitForElements.checkVisibility(el, options);
+    }
+
+
     static _normalizeOptions(options, defaults)
     {
         "use strict";
@@ -71,6 +134,7 @@ class WaitForElements
             target: document.body,
             selectors: [],
             filter: null,
+            visibility: null,
             allowMultipleMatches: false,
             onlyOnce: false,
             skipExisting: false,
@@ -232,6 +296,114 @@ class WaitForElements
         }
     }
 
+    _getVisibilityOptions()
+    {
+        "use strict";
+
+        return {
+            root: this.options.target,
+            ...(this.options.visibility ?? {}),
+        };
+    }
+
+
+    _setupVisibilityObserver(onMatchFn)
+    {
+        "use strict";
+
+        if (this.visibilityObserver !== null)
+            return;
+
+        this.visibilityObserver = new IntersectionObserver(entries => {
+            this._handleVisibilityEntries(entries, onMatchFn);
+        }, this._getVisibilityOptions());
+    }
+
+
+    _handleVisibilityEntries(entries, onMatchFn)
+    {
+        "use strict";
+
+        let visibleEls = [];
+
+        for (let entry of entries)
+        {
+            let el = entry.target;
+
+            if (!this.visibilityPending.has(el))
+                continue;
+
+            if (entry.isIntersecting)
+            {
+                this.visibilityPending.delete(el);
+                this.visibilityObserver.unobserve(el);
+                visibleEls.push(el);
+            }
+        }
+
+        if (visibleEls.length > 0)
+        {
+            onMatchFn(visibleEls);
+
+            if (!this.options.allowMultipleMatches)
+            {
+                this.stop();
+            }
+        }
+    }
+
+
+    _applyVisibility(els, onMatchFn)
+    {
+        "use strict";
+
+        if (!this.options.visibility)
+        {
+            if (els.length > 0)
+            {
+                onMatchFn(els);
+
+                if (!this.options.allowMultipleMatches)
+                {
+                    this.stop();
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        let visibilityOptions = this._getVisibilityOptions();
+        let visibleNow = [];
+
+        for (let el of els)
+        {
+            if (WaitForElements.isOverlappingRootBounds(el, visibilityOptions))
+            {
+                visibleNow.push(el);
+            }
+            else if (!this.visibilityPending.has(el))
+            {
+                this.visibilityPending.set(el, true);
+                this._setupVisibilityObserver(onMatchFn);
+                this.visibilityObserver.observe(el);
+            }
+        }
+
+        if (visibleNow.length > 0)
+        {
+            onMatchFn(visibleNow);
+
+            if (!this.options.allowMultipleMatches)
+            {
+                this.stop();
+                return true;
+            }
+        }
+
+        return false;
+    }
+
 
     _disconnectObserver()
     {
@@ -250,6 +422,20 @@ class WaitForElements
     }
 
 
+    _disconnectVisibilityObserver()
+    {
+        "use strict";
+
+        if (this.visibilityObserver !== null)
+        {
+            this.visibilityObserver.disconnect();
+            this.visibilityObserver = null;
+        }
+
+        this.visibilityPending.clear();
+    }
+
+
     _continueMatching(onMatchFn)
     {
         "use strict";
@@ -259,13 +445,7 @@ class WaitForElements
 
             if (els.length > 0)
             {
-                onMatchFn(els);
-
-                if (!this.options.allowMultipleMatches)
-                {
-                    this.stop();
-                    return;
-                }
+                this._applyVisibility(els, onMatchFn);
             }
         });
 
@@ -287,13 +467,8 @@ class WaitForElements
             let els = this._getElementsFiltered();
             if (els.length > 0)
             {
-                onMatchFn(els);
-
-                if (!this.options.allowMultipleMatches)
-                {
-                    this.stop();
+                if (this._applyVisibility(els, onMatchFn))
                     return;
-                }
             }
         }
 
@@ -330,6 +505,7 @@ class WaitForElements
         "use strict";
 
         this._disconnectObserver();
+        this._disconnectVisibilityObserver();
         this._clearTimeout();
     }
 

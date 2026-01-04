@@ -159,6 +159,139 @@ describe("_getElementsFromElementToRoot", function() {
 });
 
 
+describe("visibility helpers", function() {
+
+
+    it("checkVisibility returns false for non-elements", function() {
+        expect(WaitForElements.checkVisibility("nope")).toBeFalse();
+    });
+
+
+    it("checkVisibility uses element.checkVisibility when available", function() {
+        let el = document.createElement("div");
+        el.checkVisibility = () => false;
+        let spy_iv = spyOn(WaitForElements, "isOverlappingRootBounds").and.returnValue(true);
+
+        expect(WaitForElements.checkVisibility(el)).toBeFalse();
+        expect(spy_iv).toHaveBeenCalledWith(el, undefined);
+    });
+
+
+    it("checkVisibility passes threshold to viewport check", function() {
+        let el = document.createElement("div");
+        el.checkVisibility = () => true;
+        let spy_iv = spyOn(WaitForElements, "isOverlappingRootBounds").and.returnValue(true);
+
+        expect(WaitForElements.checkVisibility(el, { threshold: 1 })).toBeTrue();
+        expect(spy_iv).toHaveBeenCalledWith(el, { threshold: 1 });
+    });
+
+
+    it("isInViewport returns true when element intersects viewport", function() {
+        let el = document.createElement("div");
+        spyOn(el, "getBoundingClientRect").and.returnValue({
+            top: 0,
+            left: 0,
+            right: 50,
+            bottom: 50,
+        });
+
+        let originalWidth = window.innerWidth;
+        let originalHeight = window.innerHeight;
+        window.innerWidth = 100;
+        window.innerHeight = 100;
+
+        expect(WaitForElements.isOverlappingRootBounds(el)).toBeTrue();
+        expect(WaitForElements.isInViewport(el)).toBeTrue();
+
+        window.innerWidth = originalWidth;
+        window.innerHeight = originalHeight;
+    });
+
+
+    it("isInViewport returns false when element is outside viewport", function() {
+        let el = document.createElement("div");
+        spyOn(el, "getBoundingClientRect").and.returnValue({
+            top: 200,
+            left: 200,
+            right: 250,
+            bottom: 250,
+        });
+
+        let originalWidth = window.innerWidth;
+        let originalHeight = window.innerHeight;
+        window.innerWidth = 100;
+        window.innerHeight = 100;
+
+        expect(WaitForElements.isOverlappingRootBounds(el)).toBeFalse();
+        expect(WaitForElements.isInViewport(el)).toBeFalse();
+
+        window.innerWidth = originalWidth;
+        window.innerHeight = originalHeight;
+    });
+
+
+    it("isInViewport uses root bounds when provided", function() {
+        let el = document.createElement("div");
+        let root = document.createElement("div");
+        spyOn(el, "getBoundingClientRect").and.returnValue({
+            top: 40,
+            left: 40,
+            right: 60,
+            bottom: 60,
+        });
+        spyOn(root, "getBoundingClientRect").and.returnValue({
+            top: 0,
+            left: 0,
+            right: 50,
+            bottom: 50,
+        });
+
+        expect(WaitForElements.isOverlappingRootBounds(el, { root })).toBeTrue();
+    });
+
+
+    it("isInViewport requires full visibility when threshold is 1", function() {
+        let el = document.createElement("div");
+        spyOn(el, "getBoundingClientRect").and.returnValue({
+            top: -10,
+            left: 0,
+            right: 50,
+            bottom: 50,
+        });
+
+        let originalWidth = window.innerWidth;
+        let originalHeight = window.innerHeight;
+        window.innerWidth = 100;
+        window.innerHeight = 100;
+
+        expect(WaitForElements.isOverlappingRootBounds(el, { threshold: 0 })).toBeTrue();
+        expect(WaitForElements.isOverlappingRootBounds(el, { threshold: 1 })).toBeFalse();
+
+        window.innerWidth = originalWidth;
+        window.innerHeight = originalHeight;
+    });
+
+
+    it("isVisibleDefault requires both checkVisibility and isInViewport", function() {
+        let el = document.createElement("div");
+        let originalCheckVisibility = WaitForElements.checkVisibility;
+        let spy_cv = spyOn(WaitForElements, "checkVisibility").and.returnValue(false);
+
+        expect(WaitForElements.isVisibleDefault(el)).toBeFalse();
+        expect(spy_cv).toHaveBeenCalledWith(el, undefined);
+
+        spy_cv.and.returnValue(true);
+
+        expect(WaitForElements.isVisibleDefault(el)).toBeTrue();
+
+        WaitForElements.checkVisibility = originalCheckVisibility;
+    });
+
+
+});
+
+
 describe("_normalizeOptions", function() {
 
 
@@ -168,6 +301,7 @@ describe("_normalizeOptions", function() {
                 target: document.body,
                 selectors: [],
                 filter: null,
+                visibility: null,
                 allowMultipleMatches: false,
                 onlyOnce: false,
                 skipExisting: false,
@@ -191,6 +325,7 @@ describe("_normalizeOptions", function() {
                 target: document.body,
                 selectors: [],
                 filter: null,
+                visibility: null,
                 allowMultipleMatches: false,
                 onlyOnce: false,
                 skipExisting: false,
@@ -214,6 +349,7 @@ describe("_normalizeOptions", function() {
                 target: document.body,
                 selectors: [],
                 filter: null,
+                visibility: null,
                 onlyOnce: false,
                 allowMultipleMatches: false,
                 skipExisting: false,
@@ -281,6 +417,7 @@ describe("constructor", function() {
                     target: document.body,
                     selectors: [],
                     filter: null,
+                    visibility: null,
                     allowMultipleMatches: false,
                     onlyOnce: false,
                     skipExisting: false,
@@ -297,6 +434,8 @@ describe("constructor", function() {
                 },
                 seen: jasmine.any(Map),
                 observer: null,
+                visibilityObserver: null,
+                visibilityPending: jasmine.any(Map),
                 timerId: null,
             }));
     });
@@ -579,6 +718,92 @@ describe("_applyFilters", function() {
         expect(els).toEqual([o1, o2, o1, o2]);
         expect(spy_fose).not.toHaveBeenCalled();
         expect(filterSpy).toHaveBeenCalledOnceWith([o1, o2, o1, o2]);
+    });
+
+});
+
+
+describe("_applyVisibility", function() {
+
+    beforeEach(function() {
+        this._originalIntersectionObserver = window.IntersectionObserver;
+        this._originalIsOverlappingRootBounds = WaitForElements.isOverlappingRootBounds;
+    });
+
+    afterEach(function() {
+        window.IntersectionObserver = this._originalIntersectionObserver;
+        WaitForElements.isOverlappingRootBounds = this._originalIsOverlappingRootBounds;
+    });
+
+
+    it("defers matches until elements become visible", function() {
+        let visible = false;
+        let observerInstance;
+
+        class FakeIntersectionObserver {
+            constructor(callback, options) {
+                this.callback = callback;
+                this.options = options;
+                this.observed = new Set();
+                observerInstance = this;
+            }
+            observe(el) {
+                this.observed.add(el);
+            }
+            unobserve(el) {
+                this.observed.delete(el);
+            }
+            disconnect() {
+                this.observed.clear();
+            }
+            trigger(entries) {
+                this.callback(entries);
+            }
+        }
+
+        window.IntersectionObserver = FakeIntersectionObserver;
+
+        let waiter = new WaitForElements({
+            visibility: {},
+        });
+        let onMatchFn = jasmine.createSpy("onMatchFn");
+        spyOn(WaitForElements, "isOverlappingRootBounds").and.callFake(() => visible);
+
+        let el = document.createElement("div");
+        waiter._applyVisibility([el], onMatchFn);
+
+        expect(observerInstance.options.root).toBe(waiter.options.target);
+        expect(observerInstance.options.rootMargin).toBeUndefined();
+        expect(observerInstance.options.threshold).toBeUndefined();
+        expect(onMatchFn).not.toHaveBeenCalled();
+        expect(observerInstance.observed.has(el)).toBeTrue();
+
+        visible = true;
+        observerInstance.trigger([{ target: el, isIntersecting: true }]);
+
+        expect(onMatchFn).toHaveBeenCalledOnceWith([el]);
+    });
+
+
+    it("returns matches immediately when already visible", function() {
+        class FakeIntersectionObserver {
+            constructor() {
+                throw new Error("IntersectionObserver should not be used");
+            }
+        }
+
+        window.IntersectionObserver = FakeIntersectionObserver;
+
+        let waiter = new WaitForElements({
+            visibility: {},
+        });
+        let onMatchFn = jasmine.createSpy("onMatchFn");
+        spyOn(WaitForElements, "isOverlappingRootBounds").and.returnValue(true);
+
+        let el = document.createElement("div");
+        waiter._applyVisibility([el], onMatchFn);
+
+        expect(onMatchFn).toHaveBeenCalledOnceWith([el]);
     });
 
 });
@@ -1308,11 +1533,13 @@ describe("stop", function() {
             });
 
         let spy_do = spyOn(waiter, "_disconnectObserver").and.callThrough();
+        let spy_dvo = spyOn(waiter, "_disconnectVisibilityObserver").and.callThrough();
         let spy_ct = spyOn(waiter, "_clearTimeout").and.callThrough();
 
         waiter.stop();
 
         expect(spy_do).toHaveBeenCalled();
+        expect(spy_dvo).toHaveBeenCalled();
         expect(spy_ct).toHaveBeenCalled();
     });
 });
