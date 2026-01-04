@@ -156,6 +156,18 @@ describe("_getElementsFromElementToRoot", function() {
     });
 
 
+    it("returns root element when start is root", function() {
+        expect(WaitForElements._getElementsFromElementToRoot(this._maindiv, this._maindiv))
+            .toEqual([this._maindiv]);
+    });
+
+
+    it("returns empty list if root is not an Element", function() {
+        let el = document.createElement("div");
+        expect(WaitForElements._getElementsFromElementToRoot(el, "not an element"))
+            .toEqual([]);
+    });
+
 });
 
 
@@ -229,6 +241,27 @@ describe("_normalizeOptions", function() {
                 verbose: false,
             });
         });
+
+
+    it("custom options override defaults", function() {
+        let customFilter = () => [];
+        expect(WaitForElements._normalizeOptions({
+            selectors: [ "div" ],
+            filter: customFilter,
+            observerOptions: { subtree: false },
+            verbose: true,
+        })).toEqual({
+            target: document.body,
+            selectors: [ "div" ],
+            filter: customFilter,
+            allowMultipleMatches: false,
+            onlyOnce: false,
+            skipExisting: false,
+            timeout: -1,
+            observerOptions: { subtree: false },
+            verbose: true,
+        });
+    });
 
 
 });
@@ -581,6 +614,20 @@ describe("_applyFilters", function() {
         expect(filterSpy).toHaveBeenCalledOnceWith([o1, o2, o1, o2]);
     });
 
+    it("returns original elements when filter is not set", function() {
+        let waiter = new WaitForElements({ filter: null });
+        let o1 = {};
+        let o2 = {};
+        expect(waiter._applyFilters([ o1, o2 ])).toEqual([ o1, o2 ]);
+    });
+
+    it("onlyOnce filters even without filter function", function() {
+        let waiter = new WaitForElements({ onlyOnce: true, filter: null });
+        let o1 = {};
+        let o2 = {};
+        expect(waiter._applyFilters([ o1, o2, o1 ])).toEqual([ o1, o2, o1 ]);
+    });
+
 });
 
 
@@ -606,6 +653,52 @@ describe("_handleMutations", function() {
         expect(spy_gems).toHaveBeenCalledBefore(spy_af);
         expect(spy_af).toHaveBeenCalledOnceWith([newdiv]);
         expect(els).toEqual([newdiv]);
+    });
+
+    it("returns empty when selectors are empty", function() {
+        let waiter = new WaitForElements({
+            selectors: [],
+        });
+        let newdiv = document.createElement("div");
+        let mut = {
+            type: "childList",
+            addedNodes: [ newdiv ],
+        };
+        expect(waiter._handleMutations([mut]))
+            .toEqual([]);
+    });
+});
+
+
+describe("_continueMatching", function() {
+    beforeEach(function() {
+        this._originalMutationObserver = window.MutationObserver;
+    });
+
+    afterEach(function() {
+        window.MutationObserver = this._originalMutationObserver;
+    });
+
+    it("uses provided target and observer options", function() {
+        let observeSpy = jasmine.createSpy("observe");
+        class FakeMutationObserver {
+            constructor() {}
+            observe(target, options) {
+                observeSpy(target, options);
+            }
+        }
+        window.MutationObserver = FakeMutationObserver;
+
+        let waiter = new WaitForElements({
+            target: this._maindiv,
+            selectors: [ "span" ],
+            observerOptions: { subtree: false },
+        });
+        let onMatchFn = jasmine.createSpy("onMatchFn");
+
+        waiter._continueMatching(onMatchFn);
+
+        expect(observeSpy).toHaveBeenCalledWith(this._maindiv, { subtree: false });
     });
 });
 
@@ -1314,6 +1407,21 @@ describe("stop", function() {
 
         expect(spy_do).toHaveBeenCalled();
         expect(spy_ct).toHaveBeenCalled();
+    });
+
+    it("clears internal state for observers and timers", function () {
+        let waiter = new WaitForElements({
+                target: this._maindiv,
+                selectors: [ "nomatter" ],
+            });
+
+        waiter.observer = jasmine.createSpyObj("fakeObserver", [ "disconnect" ]);
+        waiter.timerId = window.setTimeout(() => undefined, 1000);
+
+        waiter.stop();
+
+        expect(waiter.observer).toBe(null);
+        expect(waiter.timerId).toBe(null);
     });
 });
 
