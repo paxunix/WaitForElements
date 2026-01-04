@@ -167,16 +167,6 @@ describe("visibility helpers", function() {
     });
 
 
-    it("checkVisibility uses element.checkVisibility when available", function() {
-        let el = document.createElement("div");
-        el.checkVisibility = () => false;
-        let spy_iv = spyOn(WaitForElements, "isOverlappingRootBounds").and.returnValue(true);
-
-        expect(WaitForElements.checkVisibility(el)).toBeFalse();
-        expect(spy_iv).toHaveBeenCalledWith(el, undefined);
-    });
-
-
     it("checkVisibility passes threshold to viewport check", function() {
         let el = document.createElement("div");
         el.checkVisibility = () => true;

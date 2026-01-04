@@ -1,0 +1,15 @@
+{
+  "srcDir": ".",
+  "srcFiles": [
+    "WaitForElements.js"
+  ],
+  "specDir": "test",
+  "specFiles": [
+    "**/*[sS]pec.js"
+  ],
+  "helpers": [],
+  "browser": {
+    "name": "headlessChrome",
+    "headless": true
+  }
+}
