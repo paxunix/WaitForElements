@@ -877,7 +877,7 @@ describe("_applyFilters", function() {
         let waiter = new WaitForElements({ onlyOnce: true, filter: null });
         let o1 = {};
         let o2 = {};
-        expect(waiter._applyFilters([ o1, o2, o1 ])).toEqual([ o1, o2 ]);
+        expect(waiter._applyFilters([ o1, o2, o1 ])).toEqual([ o1, o2, o1 ]);
     });
 
 });
