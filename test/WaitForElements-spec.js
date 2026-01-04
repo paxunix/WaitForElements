@@ -89,6 +89,20 @@ describe("_querySelectors", function() {
             .toEqual([]);
     });
 
+
+    it("returns empty list when selectors array is empty", function() {
+        this._maindiv.innerHTML = "<span>span1</span>";
+        expect(WaitForElements._querySelectors(this._maindiv, []))
+            .toEqual([]);
+    });
+
+
+    it("throws on invalid selector", function() {
+        this._maindiv.innerHTML = "<span>span1</span>";
+        expect(() => WaitForElements._querySelectors(this._maindiv, "span["))
+            .toThrowError(DOMException);
+    });
+
 });
 
 
@@ -156,6 +170,18 @@ describe("_getElementsFromElementToRoot", function() {
     });
 
 
+    it("returns root element when start is root", function() {
+        expect(WaitForElements._getElementsFromElementToRoot(this._maindiv, this._maindiv))
+            .toEqual([this._maindiv]);
+    });
+
+
+    it("returns empty list if root is not an Element", function() {
+        let el = document.createElement("div");
+        expect(WaitForElements._getElementsFromElementToRoot(el, "not an element"))
+            .toEqual([]);
+    });
+
 });
 
 
@@ -174,6 +200,25 @@ describe("visibility helpers", function() {
 
         expect(WaitForElements.checkVisibility(el, { threshold: 1 })).toBeTrue();
         expect(spy_iv).toHaveBeenCalledWith(el, { threshold: 1 });
+    });
+
+
+    it("checkVisibility returns false when element not visible", function() {
+        let el = document.createElement("div");
+        el.checkVisibility = () => false;
+        let spy_iv = spyOn(WaitForElements, "isOverlappingRootBounds").and.returnValue(true);
+
+        expect(WaitForElements.checkVisibility(el, { threshold: 0 })).toBeFalse();
+        expect(spy_iv).not.toHaveBeenCalled();
+    });
+
+
+    it("checkVisibility returns false when outside root bounds", function() {
+        let el = document.createElement("div");
+        el.checkVisibility = () => true;
+        spyOn(WaitForElements, "isOverlappingRootBounds").and.returnValue(false);
+
+        expect(WaitForElements.checkVisibility(el, { threshold: 0 })).toBeFalse();
     });
 
 
@@ -263,6 +308,53 @@ describe("visibility helpers", function() {
     });
 
 
+    it("isOverlappingRootBounds returns false for non-elements", function() {
+        expect(WaitForElements.isOverlappingRootBounds("nope")).toBeFalse();
+    });
+
+
+    it("isOverlappingRootBounds requires full visibility for threshold >= 1", function() {
+        let el = document.createElement("div");
+        spyOn(el, "getBoundingClientRect").and.returnValue({
+            top: 10,
+            left: 10,
+            right: 40,
+            bottom: 40,
+        });
+
+        let originalWidth = window.innerWidth;
+        let originalHeight = window.innerHeight;
+        window.innerWidth = 50;
+        window.innerHeight = 50;
+
+        expect(WaitForElements.isOverlappingRootBounds(el, { threshold: 1 })).toBeTrue();
+
+        window.innerWidth = originalWidth;
+        window.innerHeight = originalHeight;
+    });
+
+
+    it("isOverlappingRootBounds falls back to viewport when root is not an element", function() {
+        let el = document.createElement("div");
+        spyOn(el, "getBoundingClientRect").and.returnValue({
+            top: 0,
+            left: 0,
+            right: 10,
+            bottom: 10,
+        });
+
+        let originalWidth = window.innerWidth;
+        let originalHeight = window.innerHeight;
+        window.innerWidth = 100;
+        window.innerHeight = 100;
+
+        expect(WaitForElements.isOverlappingRootBounds(el, { root: "nope" })).toBeTrue();
+
+        window.innerWidth = originalWidth;
+        window.innerHeight = originalHeight;
+    });
+
+
     it("isVisibleDefault requires both checkVisibility and isInViewport", function() {
         let el = document.createElement("div");
         let originalCheckVisibility = WaitForElements.checkVisibility;
@@ -276,6 +368,15 @@ describe("visibility helpers", function() {
         expect(WaitForElements.isVisibleDefault(el)).toBeTrue();
 
         WaitForElements.checkVisibility = originalCheckVisibility;
+    });
+
+
+    it("isVisibleDefault passes options through to checkVisibility", function() {
+        let el = document.createElement("div");
+        let spy_cv = spyOn(WaitForElements, "checkVisibility").and.returnValue(true);
+
+        expect(WaitForElements.isVisibleDefault(el, { threshold: 1 })).toBeTrue();
+        expect(spy_cv).toHaveBeenCalledWith(el, { threshold: 1 });
     });
 
 
@@ -355,6 +456,29 @@ describe("_normalizeOptions", function() {
                 verbose: false,
             });
         });
+
+
+    it("custom options override defaults", function() {
+        let customFilter = () => [];
+        expect(WaitForElements._normalizeOptions({
+            selectors: [ "div" ],
+            filter: customFilter,
+            visibility: { threshold: 0.5 },
+            observerOptions: { subtree: false },
+            verbose: true,
+        })).toEqual({
+            target: document.body,
+            selectors: [ "div" ],
+            filter: customFilter,
+            visibility: { threshold: 0.5 },
+            allowMultipleMatches: false,
+            onlyOnce: false,
+            skipExisting: false,
+            timeout: -1,
+            observerOptions: { subtree: false },
+            verbose: true,
+        });
+    });
 
 
 });
@@ -575,6 +699,23 @@ describe("_getElementsFiltered", function() {
             ]);
     });
 
+    it("logs when verbose and elements are found", function() {
+        this._maindiv.innerHTML = `<span id=span1>span1</span>`;
+        let waiter = new WaitForElements({
+            target: this._maindiv,
+            selectors: "span",
+            verbose: true,
+        });
+        let logSpy = spyOn(console, "log");
+
+        waiter._getElementsFiltered();
+
+        expect(logSpy).toHaveBeenCalledWith(
+            "Found existing elements matching selectors:",
+            [ this._maindiv.querySelector("#span1") ]
+        );
+    });
+
 });
 
 
@@ -670,6 +811,21 @@ describe("_getElementsFromMutations", function() {
         expect(waiter._getElementsFromMutations([mut, mut]))
             .toEqual([this._maindiv.querySelector("#span1"), div]);
     });
+
+    it("characterData mutation with detached text node returns empty", function() {
+        let waiter = new WaitForElements({
+            target: this._maindiv,
+            selectors: [ "*" ]
+        });
+        let textNode = document.createTextNode("detached");
+        let mut = {
+            type: "characterData",
+            target: textNode,
+        };
+
+        expect(waiter._getElementsFromMutations([mut]))
+            .toEqual([]);
+    });
 });
 
 
@@ -708,6 +864,20 @@ describe("_applyFilters", function() {
         expect(els).toEqual([o1, o2, o1, o2]);
         expect(spy_fose).not.toHaveBeenCalled();
         expect(filterSpy).toHaveBeenCalledOnceWith([o1, o2, o1, o2]);
+    });
+
+    it("returns original elements when filter is not set", function() {
+        let waiter = new WaitForElements({ filter: null });
+        let o1 = {};
+        let o2 = {};
+        expect(waiter._applyFilters([ o1, o2 ])).toEqual([ o1, o2 ]);
+    });
+
+    it("onlyOnce filters even without filter function", function() {
+        let waiter = new WaitForElements({ onlyOnce: true, filter: null });
+        let o1 = {};
+        let o2 = {};
+        expect(waiter._applyFilters([ o1, o2, o1 ])).toEqual([ o1, o2 ]);
     });
 
 });
@@ -796,6 +966,51 @@ describe("_applyVisibility", function() {
         expect(onMatchFn).toHaveBeenCalledOnceWith([el]);
     });
 
+    it("stops matching when allowMultipleMatches is false", function() {
+        window.IntersectionObserver = jasmine.createSpy("IntersectionObserver");
+        let waiter = new WaitForElements({
+            visibility: {},
+            allowMultipleMatches: false,
+        });
+        let onMatchFn = jasmine.createSpy("onMatchFn");
+        spyOn(WaitForElements, "isOverlappingRootBounds").and.returnValue(true);
+        let spy_stop = spyOn(waiter, "stop").and.callThrough();
+
+        let el = document.createElement("div");
+        let shouldStop = waiter._applyVisibility([el], onMatchFn);
+
+        expect(shouldStop).toBeTrue();
+        expect(onMatchFn).toHaveBeenCalledOnceWith([el]);
+        expect(spy_stop).toHaveBeenCalled();
+    });
+
+    it("does not stop matching when allowMultipleMatches is true", function() {
+        window.IntersectionObserver = jasmine.createSpy("IntersectionObserver");
+        let waiter = new WaitForElements({
+            visibility: {},
+            allowMultipleMatches: true,
+        });
+        let onMatchFn = jasmine.createSpy("onMatchFn");
+        spyOn(WaitForElements, "isOverlappingRootBounds").and.returnValue(true);
+        let spy_stop = spyOn(waiter, "stop").and.callThrough();
+
+        let el = document.createElement("div");
+        let shouldStop = waiter._applyVisibility([el], onMatchFn);
+
+        expect(shouldStop).toBeFalse();
+        expect(onMatchFn).toHaveBeenCalledOnceWith([el]);
+        expect(spy_stop).not.toHaveBeenCalled();
+    });
+
+    it("returns false when no elements are provided without visibility", function() {
+        let waiter = new WaitForElements({
+            visibility: null,
+        });
+        let onMatchFn = jasmine.createSpy("onMatchFn");
+        expect(waiter._applyVisibility([], onMatchFn)).toBeFalse();
+        expect(onMatchFn).not.toHaveBeenCalled();
+    });
+
 });
 
 
@@ -821,6 +1036,173 @@ describe("_handleMutations", function() {
         expect(spy_gems).toHaveBeenCalledBefore(spy_af);
         expect(spy_af).toHaveBeenCalledOnceWith([newdiv]);
         expect(els).toEqual([newdiv]);
+    });
+
+    it("returns empty when selectors are empty", function() {
+        let waiter = new WaitForElements({
+            selectors: [],
+        });
+        let newdiv = document.createElement("div");
+        let mut = {
+            type: "childList",
+            addedNodes: [ newdiv ],
+        };
+        expect(waiter._handleMutations([mut]))
+            .toEqual([]);
+    });
+});
+
+describe("_getVisibilityOptions", function() {
+    it("merges visibility options with target root", function() {
+        let waiter = new WaitForElements({
+            target: this._maindiv,
+            visibility: { threshold: 0.5, rootMargin: "10px" },
+        });
+
+        expect(waiter._getVisibilityOptions()).toEqual({
+            root: this._maindiv,
+            threshold: 0.5,
+            rootMargin: "10px",
+        });
+    });
+});
+
+
+describe("_setupVisibilityObserver", function() {
+    beforeEach(function() {
+        this._originalIntersectionObserver = window.IntersectionObserver;
+    });
+
+    afterEach(function() {
+        window.IntersectionObserver = this._originalIntersectionObserver;
+    });
+
+    it("only creates one observer instance", function() {
+        let callCount = 0;
+        class FakeIntersectionObserver {
+            constructor() {
+                callCount += 1;
+            }
+        }
+        window.IntersectionObserver = FakeIntersectionObserver;
+
+        let waiter = new WaitForElements({
+            visibility: {},
+        });
+        let onMatchFn = jasmine.createSpy("onMatchFn");
+
+        waiter._setupVisibilityObserver(onMatchFn);
+        waiter._setupVisibilityObserver(onMatchFn);
+
+        expect(callCount).toBe(1);
+    });
+});
+
+
+describe("_handleVisibilityEntries", function() {
+    beforeEach(function() {
+        this._originalIntersectionObserver = window.IntersectionObserver;
+    });
+
+    afterEach(function() {
+        window.IntersectionObserver = this._originalIntersectionObserver;
+    });
+
+    it("ignores entries not in pending set", function() {
+        class FakeIntersectionObserver {
+            observe() {}
+            unobserve() {}
+            disconnect() {}
+        }
+        window.IntersectionObserver = FakeIntersectionObserver;
+
+        let waiter = new WaitForElements({
+            visibility: {},
+        });
+        let onMatchFn = jasmine.createSpy("onMatchFn");
+        let el = document.createElement("div");
+
+        waiter._handleVisibilityEntries([{ target: el, isIntersecting: true }], onMatchFn);
+
+        expect(onMatchFn).not.toHaveBeenCalled();
+    });
+
+    it("ignores non-intersecting entries", function() {
+        class FakeIntersectionObserver {
+            observe() {}
+            unobserve() {}
+            disconnect() {}
+        }
+        window.IntersectionObserver = FakeIntersectionObserver;
+
+        let waiter = new WaitForElements({
+            visibility: {},
+        });
+        let onMatchFn = jasmine.createSpy("onMatchFn");
+        let el = document.createElement("div");
+        waiter.visibilityPending.set(el, true);
+
+        waiter._handleVisibilityEntries([{ target: el, isIntersecting: false }], onMatchFn);
+
+        expect(onMatchFn).not.toHaveBeenCalled();
+        expect(waiter.visibilityPending.has(el)).toBeTrue();
+    });
+
+    it("stops when allowMultipleMatches is false", function() {
+        class FakeIntersectionObserver {
+            observe() {}
+            unobserve() {}
+            disconnect() {}
+        }
+        window.IntersectionObserver = FakeIntersectionObserver;
+
+        let waiter = new WaitForElements({
+            visibility: {},
+            allowMultipleMatches: false,
+        });
+        let onMatchFn = jasmine.createSpy("onMatchFn");
+        let spy_stop = spyOn(waiter, "stop").and.callThrough();
+        let el = document.createElement("div");
+        waiter.visibilityPending.set(el, true);
+        waiter.visibilityObserver = new FakeIntersectionObserver();
+
+        waiter._handleVisibilityEntries([{ target: el, isIntersecting: true }], onMatchFn);
+
+        expect(onMatchFn).toHaveBeenCalledWith([el]);
+        expect(spy_stop).toHaveBeenCalled();
+    });
+});
+
+
+describe("_continueMatching", function() {
+    beforeEach(function() {
+        this._originalMutationObserver = window.MutationObserver;
+    });
+
+    afterEach(function() {
+        window.MutationObserver = this._originalMutationObserver;
+    });
+
+    it("uses provided target and observer options", function() {
+        let observeSpy = jasmine.createSpy("observe");
+        class FakeMutationObserver {
+            constructor() {}
+            observe(target, options) {
+                observeSpy(target, options);
+            }
+        }
+        window.MutationObserver = FakeMutationObserver;
+
+        let waiter = new WaitForElements({
+            target: this._maindiv,
+            selectors: [ "span" ],
+            observerOptions: { subtree: false },
+        });
+        let onMatchFn = jasmine.createSpy("onMatchFn");
+
+        waiter._continueMatching(onMatchFn);
+
+        expect(observeSpy).toHaveBeenCalledWith(this._maindiv, { subtree: false });
     });
 });
 
@@ -860,6 +1242,50 @@ describe("_startMatching", function() {
         expect(spy_hm).not.toHaveBeenCalled();
         expect(spy_st).not.toHaveBeenCalled();
         expect(waiter.observer).toEqual(null);
+    });
+
+    it("skipExisting==false, visibility enabled, matching elements already present", function () {
+        this._maindiv.innerHTML = `
+        <span id=span1>span1</span>
+        `;
+        let onMatchFn = jasmine.createSpy("onMatchFn");
+        let onTimeoutFn = jasmine.createSpy("onTimeoutFn");
+        let waiter = new WaitForElements({
+                target: this._maindiv,
+                selectors: [ "span" ],
+                skipExisting: false,
+                visibility: {},
+            });
+        let spy_gee = spyOn(waiter, "_getElementsFiltered").and.callThrough();
+        let spy_av = spyOn(waiter, "_applyVisibility").and.returnValue(true);
+        let spy_cm = spyOn(waiter, "_continueMatching").and.callThrough();
+        let spy_st = spyOn(waiter, "_setupTimeout").and.callThrough();
+
+        waiter._startMatching(onMatchFn, onTimeoutFn);
+
+        expect(spy_gee).toHaveBeenCalled();
+        expect(spy_av).toHaveBeenCalledWith([this._maindiv.querySelector("#span1")], onMatchFn);
+        expect(spy_cm).not.toHaveBeenCalled();
+        expect(spy_st).not.toHaveBeenCalled();
+        expect(waiter.observer).toEqual(null);
+    });
+
+    it("skipExisting==false, visibility enabled, timeout=-1 does not set timeout", function () {
+        this._maindiv.innerHTML = "";
+        let onMatchFn = jasmine.createSpy("onMatchFn");
+        let onTimeoutFn = jasmine.createSpy("onTimeoutFn");
+        let waiter = new WaitForElements({
+                target: this._maindiv,
+                selectors: [ "span" ],
+                skipExisting: false,
+                visibility: {},
+                timeout: -1,
+            });
+        let spy_st = spyOn(waiter, "_setupTimeout").and.callThrough();
+
+        waiter._startMatching(onMatchFn, onTimeoutFn);
+
+        expect(spy_st).not.toHaveBeenCalled();
     });
 
 
@@ -1405,6 +1831,49 @@ describe("match", function() {
         expect(onMatchFn).toHaveBeenCalledWith([this._maindiv.querySelector("#span1")]);
     });
 
+    it("only onMatchFn provided uses default timeout handler", function () {
+        let waiter = new WaitForElements({
+            target: this._maindiv,
+            selectors: [ "span" ],
+        });
+        let onMatchFn = jasmine.createSpy("onMatchFn");
+        let spy_sm = spyOn(waiter, "_startMatching").and.callThrough();
+
+        waiter.match(onMatchFn);
+
+        expect(spy_sm).toHaveBeenCalledWith(onMatchFn, jasmine.any(Function));
+    });
+
+
+    it("only onTimeoutFn provided uses default match handler", function () {
+        let waiter = new WaitForElements({
+            target: this._maindiv,
+            selectors: [ "span" ],
+        });
+        let onTimeoutFn = jasmine.createSpy("onTimeoutFn");
+        let spy_sm = spyOn(waiter, "_startMatching").and.callThrough();
+
+        waiter.match(null, onTimeoutFn);
+
+        expect(spy_sm).toHaveBeenCalledWith(jasmine.any(Function), onTimeoutFn);
+    });
+
+
+    it("promise-based match stops after resolution", async function () {
+        this._maindiv.innerHTML = "<span id=span1>span1</span>";
+        let waiter = new WaitForElements({
+            target: this._maindiv,
+            selectors: [ "span" ],
+            allowMultipleMatches: false,
+        });
+        let spy_stop = spyOn(waiter, "stop").and.callThrough();
+
+        await expectAsync(waiter.match())
+            .toBeResolvedTo([this._maindiv.querySelector("#span1")]);
+
+        expect(spy_stop).toHaveBeenCalled();
+    });
+
 
     describe("exceeding timeout", function () {
 
@@ -1531,6 +2000,25 @@ describe("stop", function() {
         expect(spy_do).toHaveBeenCalled();
         expect(spy_dvo).toHaveBeenCalled();
         expect(spy_ct).toHaveBeenCalled();
+    });
+
+    it("clears internal state for observers and timers", function () {
+        let waiter = new WaitForElements({
+                target: this._maindiv,
+                selectors: [ "nomatter" ],
+            });
+
+        waiter.observer = jasmine.createSpyObj("fakeObserver", [ "disconnect" ]);
+        waiter.visibilityObserver = jasmine.createSpyObj("fakeVisibilityObserver", [ "disconnect" ]);
+        waiter.visibilityPending.set(document.createElement("div"), true);
+        waiter.timerId = window.setTimeout(() => undefined, 1000);
+
+        waiter.stop();
+
+        expect(waiter.observer).toBe(null);
+        expect(waiter.visibilityObserver).toBe(null);
+        expect(waiter.visibilityPending.size).toBe(0);
+        expect(waiter.timerId).toBe(null);
     });
 });
 
