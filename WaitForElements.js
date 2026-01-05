@@ -1,10 +1,17 @@
 /* jshint esversion: 11, browser: true */
 
+/*
+ WaitForElements.js — main library with per-element IntersectionObserver instances
+ - Option added: requireVisible (boolean) - if true, matches are gated until the
+   element intersects the viewport (or provided root).
+ - Option added: intersectionOptions (object) - passed to IntersectionObserver.
+ - Strategy: create a separate IntersectionObserver for each matched element.
+   Simpler to implement (fits your constraint of few matched elements).
+*/
+
 class WaitForElements
 {
-
-    static _version = "2.0.4";
-
+    static _version = "2.0.5-per-element-io";
 
     constructor(options)
     {
@@ -83,12 +90,14 @@ class WaitForElements
                 childList: true,
                 subtree: true,
             },
+            // visibility / intersection options
+            requireVisible: false,
+            intersectionOptions: { root: null, rootMargin: "0px", threshold: 0 },
             verbose: false,
         };
 
         return Object.assign({}, builtinDefaults, defaults ?? {}, options);
     }
-
 
     static _getElementsMatchingSelectors(els, selectors)
     {
@@ -202,7 +211,41 @@ class WaitForElements
         return els;
     }
 
+    // --- Per-element IntersectionObserver helper ---
+    static _waitForElementToIntersectPerElement(el, options, meta = {})
+    {
+        return new Promise((resolve, reject) => {
+            const cfg = options.intersectionOptions ?? { root: null, rootMargin: "0px", threshold: 0 };
+            let prevIntersecting = false;
+            const obs = new IntersectionObserver((entries) => {
+                for (const entry of entries) {
+                    const nowIntersecting = entry.isIntersecting;
+                    if (!prevIntersecting && nowIntersecting) {
+                        try {
+                            if (meta.matchfn) meta.matchfn(el, entry);
+                            resolve(el);
+                        } catch (err) {
+                            reject(err);
+                        }
+                        if (!options.allowMultipleMatches) {
+                            obs.unobserve(el);
+                            obs.disconnect();
+                        }
+                    }
+                    prevIntersecting = nowIntersecting;
+                }
+            }, cfg);
 
+            try {
+                obs.observe(el);
+            } catch (err) {
+                try { obs.disconnect(); } catch(e) {}
+                reject(err);
+            }
+        });
+    }
+
+    // --- timeout / mutation observer lifecycle ---
     _setupTimeout(onTimeoutFn)
     {
         "use strict";
@@ -244,7 +287,7 @@ class WaitForElements
                 console.log("Disconnecting observer for selectors:", this.options.selectors);
             }
 
-            this.observer.disconnect();
+            try { this.observer.disconnect(); } catch (e) { /* ignore */ }
             this.observer = null;
         }
     }
@@ -256,8 +299,18 @@ class WaitForElements
 
         this.observer = new MutationObserver(mutations => {
             let els = this._handleMutations(mutations);
+            if (els.length === 0) return;
 
-            if (els.length > 0)
+            if (this.options.requireVisible)
+            {
+                // For each candidate, create a per-element IntersectionObserver and call onMatchFn when visible
+                for (const el of els)
+                {
+                    WaitForElements._waitForElementToIntersectPerElement(el, this.options,
+                        { matchfn: (element) => onMatchFn([element]) });
+                }
+            }
+            else
             {
                 onMatchFn(els);
 
@@ -287,12 +340,27 @@ class WaitForElements
             let els = this._getElementsFiltered();
             if (els.length > 0)
             {
-                onMatchFn(els);
-
-                if (!this.options.allowMultipleMatches)
+                if (this.options.requireVisible) {
+                    // If elements already exist and requireVisible is true, wait per element.
+                    for (const el of els) {
+                        WaitForElements._waitForElementToIntersectPerElement(el, this.options,
+                            { matchfn: (element) => {
+                                onMatchFn([element]);
+                                if (!this.options.allowMultipleMatches)
+                                    this.stop();
+                              }
+                        });
+                    }
+                }
+                else
                 {
-                    this.stop();
-                    return;
+                    onMatchFn(els);
+
+                    if (!this.options.allowMultipleMatches)
+                    {
+                        this.stop();
+                        return;
+                    }
                 }
             }
         }
@@ -333,5 +401,11 @@ class WaitForElements
         this._clearTimeout();
     }
 
+}
 
-}   // class WaitForElements
+// Export for module consumers (if used as a module)
+if (typeof module !== 'undefined' && typeof module.exports !== 'undefined') {
+    module.exports = WaitForElements;
+} else {
+    window.WaitForElements = WaitForElements;
+}
