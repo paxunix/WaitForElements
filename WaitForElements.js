@@ -82,7 +82,6 @@ class WaitForElements
                 subtree: true,
             },
             requireVisible: false,
-            intersectionOptions: { root: null, rootMargin: "0px", threshold: 0 },
             verbose: false,
         };
 
