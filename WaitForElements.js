@@ -11,7 +11,7 @@
 
 class WaitForElements
 {
-    static _version = "2.0.5-per-element-io";
+    static _version = "2.1.0";
 
     constructor(options)
     {
@@ -90,7 +90,6 @@ class WaitForElements
                 childList: true,
                 subtree: true,
             },
-            // visibility / intersection options
             requireVisible: false,
             intersectionOptions: { root: null, rootMargin: "0px", threshold: 0 },
             verbose: false,
