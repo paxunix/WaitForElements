@@ -192,6 +192,7 @@ describe("_normalizeOptions", function() {
                     childList: true,
                     subtree: true,
                 },
+                requireVisible: false,
                 verbose: false,
             });
     });
@@ -215,6 +216,7 @@ describe("_normalizeOptions", function() {
                     childList: true,
                     subtree: true,
                 },
+                requireVisible: false,
                 verbose: false,
             });
         });
@@ -238,6 +240,7 @@ describe("_normalizeOptions", function() {
                     childList: true,
                     subtree: true,
                 },
+                requireVisible: false,
                 verbose: false,
             });
         });
@@ -259,6 +262,7 @@ describe("_normalizeOptions", function() {
             skipExisting: false,
             timeout: -1,
             observerOptions: { subtree: false },
+            requireVisible: false,
             verbose: true,
         });
     });
@@ -326,6 +330,7 @@ describe("constructor", function() {
                         childList: true,
                         subtree: true,
                     },
+                    requireVisible: false,
                     verbose: false,
                 },
                 seen: jasmine.any(Map),
