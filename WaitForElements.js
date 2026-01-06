@@ -1,14 +1,5 @@
 /* jshint esversion: 11, browser: true */
 
-/*
- WaitForElements.js — main library with per-element IntersectionObserver instances
- - Option added: requireVisible (boolean) - if true, matches are gated until the
-   element intersects the viewport (or provided root).
- - Option added: intersectionOptions (object) - passed to IntersectionObserver.
- - Strategy: create a separate IntersectionObserver for each matched element.
-   Simpler to implement (fits your constraint of few matched elements).
-*/
-
 class WaitForElements
 {
     static _version = "2.1.0";
