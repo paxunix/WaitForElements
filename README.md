@@ -47,6 +47,14 @@ Default = no-op (no filtering).  Function that takes an array of elements that m
 
 Default is to observe all child nodes, subtrees, attributes, and character data at and under `target`.  If given, must conform to the `MutationObserver.observe()` API's options.
 
+#### options.requireVisible
+
+Default=`false`.  If true, matched DOM elements must also intersect at least one pixel with the viewport.  See `intersectionOptions` about configuring the intersection behaviour.
+
+#### options.intersectionOptions
+
+Default = undefined.  If given, must conform to the `IntersectionObserver.observe()` API's options.
+
 #### options.verbose
 
 Default=`false`.  Log diagnostic information to the console.  If you want the actual MutationRecords to also be logged, set this to 2 (otherwise it can get very spammy).
@@ -54,7 +62,7 @@ Default=`false`.  Log diagnostic information to the console.  If you want the ac
 
 ### _WaitForElements.match(onMatchFn, onTimeoutFn)_
 
-Wait for DOM elements to exist for which particular constraints are true.  The mutation observer used will fire for added nodes, attribute changes, and text changes.
+Wait for DOM elements to exist for which particular constraints are true.  The mutation observer used will fire for added nodes, attribute changes, and text changes.  An intersection observer can be used to wait for the DOM elements to also become visible in the viewport.
 
 #### Return
 
