@@ -200,30 +200,35 @@ class WaitForElements
         return els;
     }
 
-    // --- Per-element IntersectionObserver helper ---
-    static _waitForElementToIntersectPerElement(el, options, meta = {})
+    static _waitForElementToIntersect(el, options, meta = {})
     {
         return new Promise((resolve, reject) => {
-            const cfg = options.intersectionOptions ?? { root: null, rootMargin: "0px", threshold: 0 };
             let prevIntersecting = false;
-            const obs = new IntersectionObserver((entries) => {
-                for (const entry of entries) {
-                    const nowIntersecting = entry.isIntersecting;
-                    if (!prevIntersecting && nowIntersecting) {
+            let obs = new IntersectionObserver((entries) => {
+                for (let entry of entries)
+                {
+                    let nowIntersecting = entry.isIntersecting;
+                    if (!prevIntersecting && nowIntersecting)
+                    {
                         try {
+                        // XXX: should this be promisified (could it already be a promise?) and then just chain to this
+                        // enclosing promise?
                             if (meta.matchfn) meta.matchfn(el, entry);
                             resolve(el);
                         } catch (err) {
                             reject(err);
                         }
-                        if (!options.allowMultipleMatches) {
+
+                        if (!options.allowMultipleMatches)
+                        {
                             obs.unobserve(el);
                             obs.disconnect();
                         }
                     }
+
                     prevIntersecting = nowIntersecting;
                 }
-            }, cfg);
+            }, options.intersectionOptions);
 
             try {
                 obs.observe(el);
@@ -293,9 +298,9 @@ class WaitForElements
             if (this.options.requireVisible)
             {
                 // For each candidate, create a per-element IntersectionObserver and call onMatchFn when visible
-                for (const el of els)
+                for (let el of els)
                 {
-                    WaitForElements._waitForElementToIntersectPerElement(el, this.options,
+                    WaitForElements._waitForElementToIntersect(el, this.options,
                         { matchfn: (element) => onMatchFn([element]) });
                 }
             }
@@ -331,8 +336,8 @@ class WaitForElements
             {
                 if (this.options.requireVisible) {
                     // If elements already exist and requireVisible is true, wait per element.
-                    for (const el of els) {
-                        WaitForElements._waitForElementToIntersectPerElement(el, this.options,
+                    for (let el of els) {
+                        WaitForElements._waitForElementToIntersect(el, this.options,
                             { matchfn: (element) => {
                                 onMatchFn([element]);
                                 if (!this.options.allowMultipleMatches)
