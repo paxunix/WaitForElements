@@ -1,3 +1,5 @@
+[![Build and Test](https://github.com/paxunix/WaitForElements/actions/workflows/node.js.yml/badge.svg)](https://github.com/paxunix/WaitForElements/actions/workflows/node.js.yml)
+
 # WaitForElements.js
 
 Basic promise/callback mechanism to wait for elements meeting constraints to appear in the DOM.
