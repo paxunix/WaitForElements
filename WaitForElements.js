@@ -256,6 +256,32 @@ class WaitForElements
     _waitForElementToIntersect(el, options, onVisible = null)
     {
         return new Promise((resolve, reject) => {
+            let root = options.intersectionOptions?.root ?? null;
+
+            if (root !== null)
+            {
+                if (!(root instanceof Element))
+                {
+                    /* istanbul ignore next */
+                    if (options.verbose)
+                        console.warn("intersectionOptions.root is not an Element; skipping observe", root);
+
+                    return;
+                }
+
+                if (!root.isConnected && options.verbose)
+                    console.warn("intersectionOptions.root is not connected; intersections may never fire", root);
+
+                if (!root.contains(el))
+                {
+                    /* istanbul ignore next */
+                    if (options.verbose)
+                        console.warn("Element is not contained within intersectionOptions.root; skipping observe", el, root);
+
+                    return;
+                }
+            }
+
             let prevIntersecting = false;
             let obs = new IntersectionObserver((entries) => {
                 for (let entry of entries)
