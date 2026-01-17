@@ -1582,6 +1582,42 @@ describe("intersection observers", function() {
 
         window.IntersectionObserver = originalIntersectionObserver;
     });
+
+    it("stop disconnects all tracked intersection observers", function() {
+        let obs1 = {
+            observe: jasmine.createSpy("observe1"),
+            unobserve: jasmine.createSpy("unobserve1"),
+            disconnect: jasmine.createSpy("disconnect1"),
+        };
+        let obs2 = {
+            observe: jasmine.createSpy("observe2"),
+            unobserve: jasmine.createSpy("unobserve2"),
+            disconnect: jasmine.createSpy("disconnect2"),
+        };
+        let ctorCalls = 0;
+        let originalIntersectionObserver = window.IntersectionObserver;
+        function FakeIntersectionObserver() {
+            ctorCalls += 1;
+            return ctorCalls === 1 ? obs1 : obs2;
+        }
+        window.IntersectionObserver = FakeIntersectionObserver;
+        spyOn(window, "IntersectionObserver").and.callThrough();
+
+        let waiter = new WaitForElements({ requireVisible: true });
+        let el1 = document.createElement("div");
+        let el2 = document.createElement("div");
+
+        waiter._waitForElementToIntersect(el1, waiter.options, null);
+        waiter._waitForElementToIntersect(el2, waiter.options, null);
+
+        waiter.stop();
+
+        expect(obs1.disconnect).toHaveBeenCalled();
+        expect(obs2.disconnect).toHaveBeenCalled();
+        expect(waiter.intersectionObservers.size).toBe(0);
+
+        window.IntersectionObserver = originalIntersectionObserver;
+    });
 });
 
 });
