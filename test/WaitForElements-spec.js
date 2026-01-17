@@ -1725,6 +1725,73 @@ describe("intersectionOptions", function() {
 
         waiter.stop();
     });
+
+    it("warns and skips when root is not an Element", function() {
+        let warnSpy = spyOn(console, "warn");
+        spyOn(window, "IntersectionObserver").and.callThrough();
+        let waiter = new WaitForElements({
+            requireVisible: true,
+            intersectionOptions: {
+                root: "not-an-element",
+            },
+            verbose: true,
+        });
+        let el = document.createElement("div");
+
+        waiter._waitForElementToIntersect(el, waiter.options, null);
+
+        expect(warnSpy).toHaveBeenCalled();
+        expect(warnSpy.calls.argsFor(0)[0])
+            .toBe("intersectionOptions.root is not an Element; skipping observe");
+        expect(window.IntersectionObserver).not.toHaveBeenCalled();
+    });
+
+    it("warns when root is detached but still observes if contained", function() {
+        let warnSpy = spyOn(console, "warn");
+        let originalIntersectionObserver = window.IntersectionObserver;
+        spyOn(window, "IntersectionObserver").and.callFake(function(cb, options) {
+            return new originalIntersectionObserver(cb, options);
+        });
+        let root = document.createElement("div");
+        let el = document.createElement("div");
+        root.append(el);
+        let waiter = new WaitForElements({
+            requireVisible: true,
+            intersectionOptions: {
+                root,
+            },
+            verbose: true,
+        });
+
+        waiter._waitForElementToIntersect(el, waiter.options, null);
+
+        expect(warnSpy).toHaveBeenCalled();
+        expect(warnSpy.calls.argsFor(0)[0])
+            .toBe("intersectionOptions.root is not connected; intersections may never fire");
+        expect(window.IntersectionObserver).toHaveBeenCalled();
+    });
+
+    it("warns and skips when element is not contained by root", function() {
+        let warnSpy = spyOn(console, "warn");
+        spyOn(window, "IntersectionObserver").and.callThrough();
+        let root = document.createElement("div");
+        let el = document.createElement("div");
+        this._maindiv.append(root);
+        let waiter = new WaitForElements({
+            requireVisible: true,
+            intersectionOptions: {
+                root,
+            },
+            verbose: true,
+        });
+
+        waiter._waitForElementToIntersect(el, waiter.options, null);
+
+        expect(warnSpy).toHaveBeenCalled();
+        expect(warnSpy.calls.argsFor(0)[0])
+            .toBe("Element is not contained within intersectionOptions.root; skipping observe");
+        expect(window.IntersectionObserver).not.toHaveBeenCalled();
+    });
 });
 
 });
