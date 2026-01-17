@@ -1422,6 +1422,52 @@ describe("match", function() {
         });
     });
 
+    it("skipExisting=true with onlyOnce allows matching existing elements after mutation", function (done) {
+        this._maindiv.innerHTML = `<span id="first">first</span>`;
+        let waiter = new WaitForElements({
+            target: this._maindiv,
+            selectors: [ "span" ],
+            skipExisting: true,
+            onlyOnce: true,
+            allowMultipleMatches: false,
+        });
+        let onMatchFn = jasmine.createSpy("onMatchFn", (els) => {
+            expect(els).toEqual([ this._maindiv.querySelector("#first") ]);
+            waiter.stop();
+            done();
+        }).and.callThrough();
+
+        waiter.match(onMatchFn);
+
+        window.setTimeout(() => {
+            let first = this._maindiv.querySelector("#first");
+            first.setAttribute("data-test", "1");
+        }, 0);
+    });
+
+    it("skipExisting=true with onlyOnce allows matching existing elements after mutation (promise)", function (done) {
+        this._maindiv.innerHTML = `<span id="first">first</span>`;
+        let waiter = new WaitForElements({
+            target: this._maindiv,
+            selectors: [ "span" ],
+            skipExisting: true,
+            onlyOnce: true,
+            allowMultipleMatches: false,
+        });
+
+        let p = waiter.match();
+
+        window.setTimeout(() => {
+            let first = this._maindiv.querySelector("#first");
+            first.setAttribute("data-test", "1");
+        }, 0);
+
+        p.then(els => {
+            expect(els).toEqual([ this._maindiv.querySelector("#first") ]);
+            done();
+        });
+    });
+
 
     it("selectors can be a string and not an array", function (done) {
         this._maindiv.innerHTML = ``;
