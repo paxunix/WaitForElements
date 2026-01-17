@@ -1094,6 +1094,30 @@ describe("_startMatching", function() {
         // Note that for the mutation to be detected, the observer handler function needs to run, which can only happen once this function has returned.  So, we have to advance the clock past the timeout within the match function (see above).
     });
 
+    it("skipExisting==false, allowMultipleMatches=true, timeout fires even after immediate matches", function () {
+        this._maindiv.innerHTML = `
+        <span id=span1>span1</span>
+        `;
+        let onMatchFn = jasmine.createSpy("onMatchFn");
+        let onTimeoutFn = jasmine.createSpy("onTimeoutFn");
+        let waiter = new WaitForElements({
+                target: this._maindiv,
+                selectors: [ "span" ],
+                skipExisting: false,
+                allowMultipleMatches: true,
+                timeout: 10000,
+            });
+
+        waiter._startMatching(onMatchFn, onTimeoutFn);
+
+        expect(onMatchFn).toHaveBeenCalledWith([this._maindiv.querySelector("#span1")]);
+        jasmine.clock().tick(11000);
+
+        expect(onTimeoutFn).toHaveBeenCalledWith(jasmine.any(Error));
+        expect(onTimeoutFn.calls.argsFor(0)[0].message)
+            .toBe("Timeout 10000 reached waiting for selectors");
+    });
+
 
     it("skipExisting==true, allowMultipleMatches=false, exceeding timeout", function () {
         this._maindiv.innerHTML = `
