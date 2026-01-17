@@ -1544,4 +1544,44 @@ describe("stop", function() {
     });
 });
 
+describe("intersection observers", function() {
+    it("multiple instances do not interfere with each other's observers", function() {
+        let obs1 = {
+            observe: jasmine.createSpy("observe1"),
+            unobserve: jasmine.createSpy("unobserve1"),
+            disconnect: jasmine.createSpy("disconnect1"),
+        };
+        let obs2 = {
+            observe: jasmine.createSpy("observe2"),
+            unobserve: jasmine.createSpy("unobserve2"),
+            disconnect: jasmine.createSpy("disconnect2"),
+        };
+        let ctorCalls = 0;
+        let originalIntersectionObserver = window.IntersectionObserver;
+        function FakeIntersectionObserver() {
+            ctorCalls += 1;
+            return ctorCalls === 1 ? obs1 : obs2;
+        }
+        window.IntersectionObserver = FakeIntersectionObserver;
+        let ctorSpy = spyOn(window, "IntersectionObserver").and.callThrough();
+
+        let el = document.createElement("div");
+        let waiter1 = new WaitForElements({ requireVisible: true });
+        let waiter2 = new WaitForElements({ requireVisible: true });
+
+        waiter1._waitForElementToIntersect(el, waiter1.options, null);
+        waiter2._waitForElementToIntersect(el, waiter2.options, null);
+
+        expect(waiter1.intersectionObservers.get(el)).toBe(obs1);
+        expect(waiter2.intersectionObservers.get(el)).toBe(obs2);
+
+        waiter1.stop();
+
+        expect(obs1.disconnect).toHaveBeenCalled();
+        expect(obs2.disconnect).not.toHaveBeenCalled();
+
+        window.IntersectionObserver = originalIntersectionObserver;
+    });
+});
+
 });
