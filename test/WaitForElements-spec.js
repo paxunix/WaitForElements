@@ -1396,6 +1396,151 @@ describe("match", function() {
         }, 0);
     });
 
+    it("continues waiting when filter returns empty (callbacks)", function (done) {
+        this._maindiv.innerHTML = "";
+        let waiter = new WaitForElements({
+            target: this._maindiv,
+            selectors: [ "span" ],
+            allowMultipleMatches: false,
+            skipExisting: true,
+            filter: els => els.filter(el => el.id !== "first"),
+        });
+        let onMatchFn = jasmine.createSpy("onMatchFn", (els) => {
+            expect(els).toEqual([ this._maindiv.querySelector("#second") ]);
+            waiter.stop();
+            done();
+        }).and.callThrough();
+        let onTimeoutFn = jasmine.createSpy("onTimeoutFn");
+
+        waiter.match(onMatchFn, onTimeoutFn);
+
+        window.setTimeout(() => {
+            let first = document.createElement("span");
+            first.id = "first";
+            this._maindiv.append(first);
+            window.setTimeout(() => {
+                let second = document.createElement("span");
+                second.id = "second";
+                this._maindiv.append(second);
+            }, 0);
+        }, 0);
+    });
+
+    it("continues waiting when filter returns empty (promise)", function (done) {
+        this._maindiv.innerHTML = "";
+        let waiter = new WaitForElements({
+            target: this._maindiv,
+            selectors: [ "span" ],
+            allowMultipleMatches: false,
+            skipExisting: true,
+            filter: els => els.filter(el => el.id !== "first"),
+        });
+
+        let p = waiter.match();
+
+        window.setTimeout(() => {
+            let first = document.createElement("span");
+            first.id = "first";
+            this._maindiv.append(first);
+            window.setTimeout(() => {
+                let second = document.createElement("span");
+                second.id = "second";
+                this._maindiv.append(second);
+            }, 0);
+        }, 0);
+
+        p.then(els => {
+            expect(els).toEqual([ this._maindiv.querySelector("#second") ]);
+            done();
+        });
+    });
+
+    it("requireVisible continues waiting when filter returns empty (callbacks)", function (done) {
+        jasmine.clock().install();
+        this._maindiv.innerHTML = "";
+        let root = document.createElement("div");
+        root.style.height = "50px";
+        root.style.width = "50px";
+        root.style.overflow = "auto";
+        root.style.position = "relative";
+        let first = document.createElement("div");
+        first.className = "item";
+        first.style.height = "20px";
+        first.textContent = "first";
+        let spacer = document.createElement("div");
+        spacer.style.height = "200px";
+        let second = document.createElement("div");
+        second.className = "item";
+        second.style.height = "20px";
+        second.id = "second";
+        second.textContent = "second";
+        root.append(first, spacer, second);
+        this._maindiv.append(root);
+
+        let waiter = new WaitForElements({
+            target: root,
+            selectors: [ ".item" ],
+            requireVisible: true,
+            intersectionOptions: { root },
+            allowMultipleMatches: false,
+            filter: els => els.filter(el => el.id === "second"),
+        });
+        let onMatchFn = jasmine.createSpy("onMatchFn", (els) => {
+            expect(els).toEqual([ second ]);
+            waiter.stop();
+            jasmine.clock().uninstall();
+            done();
+        }).and.callThrough();
+
+        waiter.match(onMatchFn);
+
+        root.scrollTop = 220;
+        jasmine.clock().tick(0);
+    });
+
+    it("requireVisible continues waiting when filter returns empty (promise)", function (done) {
+        jasmine.clock().install();
+        this._maindiv.innerHTML = "";
+        let root = document.createElement("div");
+        root.style.height = "50px";
+        root.style.width = "50px";
+        root.style.overflow = "auto";
+        root.style.position = "relative";
+        let first = document.createElement("div");
+        first.className = "item";
+        first.style.height = "20px";
+        first.textContent = "first";
+        let spacer = document.createElement("div");
+        spacer.style.height = "200px";
+        let second = document.createElement("div");
+        second.className = "item";
+        second.style.height = "20px";
+        second.id = "second";
+        second.textContent = "second";
+        root.append(first, spacer, second);
+        this._maindiv.append(root);
+
+        let waiter = new WaitForElements({
+            target: root,
+            selectors: [ ".item" ],
+            requireVisible: true,
+            intersectionOptions: { root },
+            allowMultipleMatches: false,
+            filter: els => els.filter(el => el.id === "second"),
+        });
+
+        let p = waiter.match();
+
+        root.scrollTop = 220;
+        jasmine.clock().tick(0);
+
+        p.then(els => {
+            expect(els).toEqual([ second ]);
+            jasmine.clock().uninstall();
+            done();
+        });
+    });
+
 
     it("rejects when filter throws", async function () {
         this._maindiv.innerHTML = `<span id=span1>span1</span>`;
