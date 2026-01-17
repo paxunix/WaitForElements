@@ -153,6 +153,9 @@ class WaitForElements
 
         els = this._applyFilters(els);
 
+        if (els.length === 0 && this.options.verbose == 2)
+            console.log("No mutated elements matched after filters");
+
         return els;
     }
 
