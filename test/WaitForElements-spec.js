@@ -1422,6 +1422,41 @@ describe("match", function() {
         jasmine.clock().uninstall();
     });
 
+    it("timeout=0 rejects immediately when no matches exist", async function () {
+        let waiter = new WaitForElements({
+                target: this._maindiv,
+                selectors: [ "noelement" ],
+                allowMultipleMatches: false,
+                skipExisting: false,
+                timeout: 0,
+            });
+
+        let p = waiter.match();
+        jasmine.clock().tick(0);
+
+        await expectAsync(p).toBeRejectedWithError("Timeout 0 reached waiting for selectors");
+    });
+
+    it("timeout=0 triggers callback immediately when no matches exist", function () {
+        let waiter = new WaitForElements({
+                target: this._maindiv,
+                selectors: [ "noelement" ],
+                allowMultipleMatches: false,
+                skipExisting: false,
+                timeout: 0,
+            });
+        let onMatchFn = jasmine.createSpy("onMatchFn");
+        let onTimeoutFn = jasmine.createSpy("onTimeoutFn");
+
+        waiter.match(onMatchFn, onTimeoutFn);
+        jasmine.clock().tick(0);
+
+        expect(onMatchFn).not.toHaveBeenCalled();
+        expect(onTimeoutFn).toHaveBeenCalledWith(jasmine.any(Error));
+        expect(onTimeoutFn.calls.argsFor(0)[0].message)
+            .toBe("Timeout 0 reached waiting for selectors");
+    });
+
 
     it("allowMultipleMatches=false, returns a Promise rejected if no matches by timeout", async function () {
         this._maindiv.innerHTML = `
