@@ -151,11 +151,6 @@ class WaitForElements
             if (els.length > 0)
                 console.log("Found existing elements matching selectors:", els);
 
-        els = this._applyFilters(els);
-
-        if (els.length === 0 && this.options.verbose == 2)
-            console.log("No mutated elements matched after filters");
-
         return els;
     }
 
@@ -202,8 +197,6 @@ class WaitForElements
                 console.log("Found mutated elements matching selectors:", els);
         }
 
-        els = this._applyFilters(els);
-
         return els;
     }
 
@@ -211,11 +204,11 @@ class WaitForElements
     {
         "use strict";
 
-        // if allowing multiple matches, immediately callback for visible
-        // match
         if (this.options.allowMultipleMatches)
         {
-            onMatchFn([el]);
+            let filtered = this._applyFilters([el]);
+            if (filtered.length > 0)
+                onMatchFn(filtered);
             return;
         }
 
@@ -246,8 +239,12 @@ class WaitForElements
                 if (!pending || pending.length === 0)
                     return;
 
+                let filtered = this._applyFilters(pending);
+                if (filtered.length === 0)
+                    return;
+
                 this.stop();
-                onMatchFn(pending);
+                onMatchFn(filtered);
             });
         }
     }
@@ -408,9 +405,20 @@ class WaitForElements
             }
             else
             {
-                onMatchFn(els);
+                let filtered = this._applyFilters(els);
 
-                if (!this.options.allowMultipleMatches)
+                if (filtered.length === 0)
+                {
+                    if (this.options.verbose == 2)
+                        console.log("No mutated elements matched after filters");
+
+                    filtered = null;
+                }
+
+                if (filtered)
+                    onMatchFn(filtered);
+
+                if (filtered && !this.options.allowMultipleMatches)
                 {
                     this.stop();
                     return;
@@ -454,12 +462,21 @@ class WaitForElements
                 }
                 else
                 {
-                    onMatchFn(els);
-
-                    if (!this.options.allowMultipleMatches)
+                    let filtered = this._applyFilters(els);
+                    if (filtered.length === 0)
                     {
-                        this.stop();
-                        return;
+                        if (this.options.verbose == 2)
+                            console.log("No mutated elements matched after filters");
+                    }
+                    else
+                    {
+                        onMatchFn(filtered);
+
+                        if (!this.options.allowMultipleMatches)
+                        {
+                            this.stop();
+                            return;
+                        }
                     }
                 }
             }

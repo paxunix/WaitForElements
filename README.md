@@ -41,7 +41,12 @@ Default=`-1`.  The promise is rejected or match()'s `onTimeoutFn` is called if n
 
 #### options.filter
 
-Default = no-op (no filtering).  Function that takes an array of elements that match `options.selectors` and returns a new (possibly empty) array of elements.  If the returned array is empty, waiting continues (if the timeout permits).  Otherwise, the promise is resolved or match()'s `onMatchFn` is called with the returned array of unique elements.
+Default = no-op (no filtering).  Function that takes an array of elements that match `options.selectors` (and also are
+visible, based on `requireVisible`) and returns a new (possibly empty) array of elements.  If the returned array is empty,
+waiting continues (if the timeout permits).  Otherwise, the promise is resolved or match()'s `onMatchFn` is called with the
+returned array of unique elements.  The intent is that any element satisfying the detection and visibility criteria is an
+input to the filter, and the filter can do anything it wants to the input, and return anything it wants as the resolved set
+of elements.
 
 #### options.observerOptions
 
