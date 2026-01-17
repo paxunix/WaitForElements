@@ -141,7 +141,7 @@ class WaitForElements
     }
 
 
-    _getElementsFiltered()
+    _getMatchingElements()
     {
         "use strict";
 
@@ -444,7 +444,7 @@ class WaitForElements
 
         if (!this.options.skipExisting || this.options.requireVisible)
         {
-            let els = this._getElementsFiltered();
+            let els = this._getMatchingElements();
             if (els.length > 0)
             {
                 if (this.options.requireVisible)
