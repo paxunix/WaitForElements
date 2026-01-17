@@ -531,6 +531,9 @@ describe("_setupTimeout", function() {
 
         expect(waiter.observer).toBe(null);
         expect(callbackFn).toHaveBeenCalledTimes(1);
+        expect(callbackFn).toHaveBeenCalledWith(jasmine.any(Error));
+        expect(callbackFn.calls.argsFor(0)[0].message)
+            .toBe("Timeout 10000 reached waiting for selectors");
     });
 
 });
@@ -1038,10 +1041,12 @@ describe("_startMatching", function() {
         let onMatchFn;
         let onTimeoutFn;
         let spy_do;
-        onTimeoutFn = jasmine.createSpy("onTimeoutFn", () => {
+        onTimeoutFn = jasmine.createSpy("onTimeoutFn", (err) => {
             expect(spy_do).toHaveBeenCalled();
             expect(onMatchFn).toHaveBeenCalledTimes(2);
             expect(onTimeoutFn).toHaveBeenCalledTimes(1);
+            expect(err).toEqual(jasmine.any(Error));
+            expect(err.message).toBe("Timeout 10000 reached waiting for selectors");
 
             done();
         }).and.callThrough();
@@ -1126,7 +1131,9 @@ describe("_startMatching", function() {
         expect(waiter.observer).not.toEqual(null);
 
         jasmine.clock().tick(11000);
-        expect(onTimeoutFn).toHaveBeenCalled();
+        expect(onTimeoutFn).toHaveBeenCalledWith(jasmine.any(Error));
+        expect(onTimeoutFn.calls.argsFor(0)[0].message)
+            .toBe("Timeout 10000 reached waiting for selectors");
     });
 
 
@@ -1146,10 +1153,12 @@ describe("_startMatching", function() {
         let onMatchFn;
         let onTimeoutFn;
         let spy_do;
-        onTimeoutFn = jasmine.createSpy("onTimeoutFn", () => {
+        onTimeoutFn = jasmine.createSpy("onTimeoutFn", (err) => {
             expect(spy_do).toHaveBeenCalled();
             expect(onMatchFn).toHaveBeenCalledWith([this._maindiv.querySelector("#newspan")]);
             expect(onTimeoutFn).toHaveBeenCalledTimes(1);
+            expect(err).toEqual(jasmine.any(Error));
+            expect(err.message).toBe("Timeout 10000 reached waiting for selectors");
 
             done();
         }).and.callThrough();
@@ -1418,7 +1427,7 @@ describe("match", function() {
 
         expect(spy_sm).toHaveBeenCalledWith(jasmine.any(Function), jasmine.any(Function));
 
-        await expectAsync(p).toBeRejected();
+        await expectAsync(p).toBeRejectedWithError("Timeout 10000 reached waiting for selectors");
 
         expect(waiter.observer).toBe(null);
         expect(waiter.timerId).toBe(null);
@@ -1452,11 +1461,13 @@ describe("match", function() {
         let spy_cm = spyOn(waiter, "_continueMatching").and.callThrough();
         let spy_st = spyOn(waiter, "_setupTimeout").and.callThrough();
         let onTimeoutFn;
-        onTimeoutFn = jasmine.createSpy("onTimeoutFn", () => {
+        onTimeoutFn = jasmine.createSpy("onTimeoutFn", (err) => {
             expect(onMatchFn).toHaveBeenCalledWith([this._maindiv.querySelector("#newspan")]);
             expect(onTimeoutFn).toHaveBeenCalledTimes(1);
             expect(waiter.observer).toBe(null);
             expect(waiter.timerId).toBe(null);
+            expect(err).toEqual(jasmine.any(Error));
+            expect(err.message).toBe("Timeout 10000 reached waiting for selectors");
 
             done();
         }).and.callThrough();
