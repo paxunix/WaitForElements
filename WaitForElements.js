@@ -12,6 +12,9 @@ class WaitForElements
         this.seen = new Map();
         this.observer = null;
         this.timerId = null;
+        this.intersectionObservers = new Map();
+        this.pendingVisible = null;
+        this.pendingVisibleScheduled = false;
     }
 
 
@@ -200,7 +203,53 @@ class WaitForElements
         return els;
     }
 
-    static _waitForElementToIntersect(el, options, meta = {})
+    _queueVisibleMatch(el, onMatchFn)
+    {
+        "use strict";
+
+        // if allowing multiple matches, immediately callback for visible
+        // match
+        if (this.options.allowMultipleMatches)
+        {
+            onMatchFn([el]);
+            return;
+        }
+
+        // pendingVisible is the microtask queue buffer for elements that
+        // became visible if allowMultipleMatches is false.  Multiple
+        // elements can intersect in the same tick (or in rapid succession)
+        // and we push them into pendingVisible so they can be delivered as
+        // a single batch to onMatchFn after the current call stack.
+        if (!this.pendingVisible)
+            this.pendingVisible = [];
+
+        this.pendingVisible.push(el);
+
+        // pendingVisibleScheduled is the guard that ensures only one
+        // queueMicrotask is scheduled at a time.  Without it, every visible
+        // element would schedule its own microtask, potentially calling
+        // stop/onMatchFn multiple times and defeating the "single match"
+        // behavior. It also lets _disconnectObserver reset state cleanly
+        // when stopping.
+        if (!this.pendingVisibleScheduled)
+        {
+            this.pendingVisibleScheduled = true;
+            queueMicrotask(() => {
+                let pending = this.pendingVisible;
+                this.pendingVisible = null;
+                this.pendingVisibleScheduled = false;
+
+                if (!pending || pending.length === 0)
+                    return;
+
+                this.stop();
+                onMatchFn(pending);
+            });
+        }
+    }
+
+
+    _waitForElementToIntersect(el, options, onVisible = null)
     {
         return new Promise((resolve, reject) => {
             let prevIntersecting = false;
@@ -210,19 +259,24 @@ class WaitForElements
                     let nowIntersecting = entry.isIntersecting;
                     if (!prevIntersecting && nowIntersecting)
                     {
-                        try {
-                        // XXX: should this be promisified (could it already be a promise?) and then just chain to this
-                        // enclosing promise?
-                            if (meta.matchfn) meta.matchfn(el, entry);
-                            resolve(el);
-                        } catch (err) {
-                            reject(err);
-                        }
-
                         if (!options.allowMultipleMatches)
                         {
                             obs.unobserve(el);
                             obs.disconnect();
+                            this.intersectionObservers.delete(el);
+                        }
+
+                        try {
+                            // We need an explicit callback here because the
+                            // promise resolves only once;
+                            // allowMultipleMatches relies on repeated
+                            // observer callbacks to emit multiple visible
+                            // matches, so this ensures the original
+                            // callback function is invoked.
+                            if (onVisible) onVisible(el);
+                            resolve(el);
+                        } catch (err) {
+                            reject(err);
                         }
                     }
 
@@ -231,9 +285,14 @@ class WaitForElements
             }, options.intersectionOptions);
 
             try {
+                let existingObs = this.intersectionObservers.get(el);
+                if (existingObs)
+                    try { existingObs.disconnect(); } catch (e) { /* ignore */ }
                 obs.observe(el);
+                this.intersectionObservers.set(el, obs);
             } catch (err) {
                 try { obs.disconnect(); } catch(e) {}
+                this.intersectionObservers.delete(el);
                 reject(err);
             }
         });
@@ -284,6 +343,18 @@ class WaitForElements
             try { this.observer.disconnect(); } catch (e) { /* ignore */ }
             this.observer = null;
         }
+
+        if (this.intersectionObservers.size > 0)
+        {
+            for (let obs of this.intersectionObservers.values())
+            {
+                try { obs.disconnect(); } catch (e) { /* ignore */ }
+            }
+            this.intersectionObservers.clear();
+        }
+
+        this.pendingVisible = null;
+        this.pendingVisibleScheduled = false;
     }
 
 
@@ -300,8 +371,8 @@ class WaitForElements
                 // For each candidate, create a per-element IntersectionObserver and call onMatchFn when visible
                 for (let el of els)
                 {
-                    WaitForElements._waitForElementToIntersect(el, this.options,
-                        { matchfn: (element) => onMatchFn([element]) });
+                    this._waitForElementToIntersect(el, this.options,
+                        (element) => this._queueVisibleMatch(element, onMatchFn));
                 }
             }
             else
@@ -329,21 +400,17 @@ class WaitForElements
             console.log("Waiting for selectors:", this.options.selectors);
         }
 
-        if (!this.options.skipExisting)
+        if (!this.options.skipExisting || this.options.requireVisible)
         {
             let els = this._getElementsFiltered();
             if (els.length > 0)
             {
-                if (this.options.requireVisible) {
+                if (this.options.requireVisible)
+                {
                     // If elements already exist and requireVisible is true, wait per element.
                     for (let el of els) {
-                        WaitForElements._waitForElementToIntersect(el, this.options,
-                            { matchfn: (element) => {
-                                onMatchFn([element]);
-                                if (!this.options.allowMultipleMatches)
-                                    this.stop();
-                              }
-                        });
+                        this._waitForElementToIntersect(el, this.options,
+                            { matchfn: (element) => this._queueVisibleMatch(element, onMatchFn) });
                     }
                 }
                 else
