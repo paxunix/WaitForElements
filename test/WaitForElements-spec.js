@@ -1690,4 +1690,41 @@ describe("intersection observers", function() {
     });
 });
 
+describe("intersectionOptions", function() {
+    beforeEach(function() {
+        this._originalIntersectionObserver = window.IntersectionObserver;
+    });
+
+    afterEach(function() {
+        window.IntersectionObserver = this._originalIntersectionObserver;
+    });
+
+    it("passes intersectionOptions to IntersectionObserver", function() {
+        let capturedOptions = null;
+        let originalIntersectionObserver = window.IntersectionObserver;
+        spyOn(window, "IntersectionObserver").and.callFake(function(cb, options) {
+            capturedOptions = options;
+            return new originalIntersectionObserver(cb, options);
+        });
+
+        let waiter = new WaitForElements({
+            target: this._maindiv,
+            requireVisible: true,
+            intersectionOptions: {
+                root: this._maindiv,
+                rootMargin: "10px",
+                threshold: 0.5,
+            },
+        });
+        let el = document.createElement("div");
+        this._maindiv.append(el);
+
+        waiter._waitForElementToIntersect(el, waiter.options, null);
+
+        expect(capturedOptions).toEqual(waiter.options.intersectionOptions);
+
+        waiter.stop();
+    });
+});
+
 });
