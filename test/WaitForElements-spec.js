@@ -489,6 +489,17 @@ describe("_getElementsFiltered", function() {
             ]);
     });
 
+    it("includes the root element when it matches selectors", function() {
+        this._maindiv.innerHTML = `<span id=span1>span1</span>`;
+        let waiter = new WaitForElements({
+            target: this._maindiv,
+            selectors: [ "#_maindiv" ],
+        });
+
+        expect(waiter._getElementsFiltered())
+            .toEqual([ this._maindiv ]);
+    });
+
 });
 
 
