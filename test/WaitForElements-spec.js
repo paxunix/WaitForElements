@@ -1468,6 +1468,63 @@ describe("match", function() {
         });
     });
 
+    it("skipExisting=true continues waiting when filter returns empty (callbacks)", function (done) {
+        this._maindiv.innerHTML = `<span id="first">first</span>`;
+        let waiter = new WaitForElements({
+            target: this._maindiv,
+            selectors: [ "span" ],
+            skipExisting: true,
+            allowMultipleMatches: false,
+            filter: els => els.filter(el => el.id !== "first"),
+        });
+        let onMatchFn = jasmine.createSpy("onMatchFn", (els) => {
+            expect(els).toEqual([ this._maindiv.querySelector("#second") ]);
+            waiter.stop();
+            done();
+        }).and.callThrough();
+
+        waiter.match(onMatchFn);
+
+        window.setTimeout(() => {
+            let first = this._maindiv.querySelector("#first");
+            first.setAttribute("data-test", "1");
+            window.setTimeout(() => {
+                expect(onMatchFn).not.toHaveBeenCalled();
+                let second = document.createElement("span");
+                second.id = "second";
+                this._maindiv.append(second);
+            }, 0);
+        }, 0);
+    });
+
+    it("skipExisting=true continues waiting when filter returns empty (promise)", function (done) {
+        this._maindiv.innerHTML = `<span id="first">first</span>`;
+        let waiter = new WaitForElements({
+            target: this._maindiv,
+            selectors: [ "span" ],
+            skipExisting: true,
+            allowMultipleMatches: false,
+            filter: els => els.filter(el => el.id !== "first"),
+        });
+
+        let p = waiter.match();
+
+        window.setTimeout(() => {
+            let first = this._maindiv.querySelector("#first");
+            first.setAttribute("data-test", "1");
+            window.setTimeout(() => {
+                let second = document.createElement("span");
+                second.id = "second";
+                this._maindiv.append(second);
+            }, 0);
+        }, 0);
+
+        p.then(els => {
+            expect(els).toEqual([ this._maindiv.querySelector("#second") ]);
+            done();
+        });
+    });
+
 
     it("selectors can be a string and not an array", function (done) {
         this._maindiv.innerHTML = ``;
