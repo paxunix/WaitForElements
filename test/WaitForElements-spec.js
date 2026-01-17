@@ -1340,6 +1340,30 @@ describe("match", function() {
         }, 0);
     });
 
+
+    it("selectors can be a string and not an array", function (done) {
+        this._maindiv.innerHTML = ``;
+        let waiter = new WaitForElements({
+                target: this._maindiv,
+                selectors: "span",
+            });
+
+        let onMatchFn = jasmine.createSpy("onMatchFn", (els) => {
+            expect(els).toEqual([ this._maindiv.querySelector("#newspan") ]);
+            waiter.stop();
+            done();
+        }).and.callThrough();
+
+        waiter.match(onMatchFn);
+
+        window.setTimeout(() => {
+            let newspan = document.createElement("span");
+            newspan.id = "newspan";
+            this._maindiv.append(newspan);
+        }, 0);
+    });
+
+
     it("rejects when filter throws", async function () {
         this._maindiv.innerHTML = `<span id=span1>span1</span>`;
         let waiter = new WaitForElements({
