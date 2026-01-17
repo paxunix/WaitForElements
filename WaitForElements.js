@@ -15,6 +15,7 @@ class WaitForElements
         this.intersectionObservers = new Map();
         this.pendingVisible = null;
         this.pendingVisibleScheduled = false;
+        this.stopped = false;
     }
 
 
@@ -369,6 +370,9 @@ class WaitForElements
                 // For each candidate, create a per-element IntersectionObserver and call onMatchFn when visible
                 for (let el of els)
                 {
+                    if (this.intersectionObservers.has(el))
+                        continue;
+
                     this._waitForElementToIntersect(el, this.options,
                         (element) => this._queueVisibleMatch(element, onMatchFn));
                 }
@@ -393,6 +397,9 @@ class WaitForElements
     {
         "use strict";
 
+        if (this.stopped)
+            throw new Error("WaitForElements instance is stopped and cannot be restarted");
+
         if (this.options.verbose)
         {
             console.log("Waiting for selectors:", this.options.selectors);
@@ -406,8 +413,13 @@ class WaitForElements
                 if (this.options.requireVisible)
                 {
                     // If elements already exist and requireVisible is true, wait per element.
-                    for (let el of els) {
+                    // If elements already exist and requireVisible is true,
+                    // wait per element.
+                    for (let el of els)
+                    {
+                            continue;
                         this._waitForElementToIntersect(el, this.options,
+
                             { matchfn: (element) => this._queueVisibleMatch(element, onMatchFn) });
                     }
                 }
@@ -456,6 +468,7 @@ class WaitForElements
     {
         "use strict";
 
+        this.stopped = true;
         this._disconnectObserver();
         this._clearTimeout();
     }
