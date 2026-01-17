@@ -123,12 +123,12 @@ class WaitForElements
     {
         "use strict";
 
-        if (!this.options.filter)
-            return els;
-
         let newels = this.options.onlyOnce ?
             this._filterOutSeenElements(els) :
             els;
+
+        if (!this.options.filter)
+            return newels;
 
         let oldlen = newels.length;
 

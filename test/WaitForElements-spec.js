@@ -635,7 +635,7 @@ describe("_applyFilters", function() {
         let waiter = new WaitForElements({ onlyOnce: true, filter: null });
         let o1 = {};
         let o2 = {};
-        expect(waiter._applyFilters([ o1, o2, o1 ])).toEqual([ o1, o2, o1 ]);
+        expect(waiter._applyFilters([ o1, o2, o1 ])).toEqual([ o1, o2 ]);
     });
 
     it("throws if filter throws", function() {
@@ -1294,6 +1294,39 @@ describe("match", function() {
         expect(spy_sm).toHaveBeenCalledBefore(spy_cm);
         expect(spy_cm).toHaveBeenCalledBefore(spy_st);
         expect(onMatchFn).toHaveBeenCalledWith([this._maindiv.querySelector("#span1")]);
+    });
+
+    it("onlyOnce=true with allowMultipleMatches=true does not re-emit matches across mutations", function (done) {
+        this._maindiv.innerHTML = `
+        <span id=span1>span1</span>
+        `;
+        let waiter = new WaitForElements({
+                target: this._maindiv,
+                selectors: [ "span" ],
+                allowMultipleMatches: true,
+                onlyOnce: true,
+            });
+
+        let onMatchFn = jasmine.createSpy("onMatchFn");
+        let onTimeoutFn = jasmine.createSpy("onTimeoutFn");
+
+        waiter.match(onMatchFn, onTimeoutFn);
+
+        expect(onMatchFn).toHaveBeenCalledTimes(1);
+        expect(onMatchFn).toHaveBeenCalledWith([this._maindiv.querySelector("#span1")]);
+        expect(onTimeoutFn).not.toHaveBeenCalled();
+
+        window.setTimeout(() => {
+            let span1 = this._maindiv.querySelector("#span1");
+            span1.setAttribute("data-test", "1");
+
+            window.setTimeout(() => {
+                expect(onMatchFn).toHaveBeenCalledTimes(1);
+                expect(onTimeoutFn).not.toHaveBeenCalled();
+                waiter.stop();
+                done();
+            }, 0);
+        }, 0);
     });
 
     it("rejects when filter throws", async function () {
