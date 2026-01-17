@@ -2004,6 +2004,39 @@ describe("requireVisible", function() {
         waiter.stop();
         window.IntersectionObserver = originalIntersectionObserver;
     });
+
+    it("promise resolves when element becomes visible", function (done) {
+        let originalIntersectionObserver = window.IntersectionObserver;
+        let observers = [];
+        function FakeIntersectionObserver(cb) {
+            this.cb = cb;
+            this.observe = (el) => { this.el = el; };
+            this.unobserve = () => undefined;
+            this.disconnect = () => undefined;
+            observers.push(this);
+        }
+        window.IntersectionObserver = FakeIntersectionObserver;
+
+        this._maindiv.innerHTML = `<div class="visible">v</div>`;
+        let el = this._maindiv.querySelector(".visible");
+        let waiter = new WaitForElements({
+            target: this._maindiv,
+            selectors: [ ".visible" ],
+            requireVisible: true,
+            allowMultipleMatches: false,
+        });
+
+        let p = waiter.match();
+
+        let obs = observers.find(observer => observer.el === el);
+        obs.cb([{ isIntersecting: true }]);
+
+        p.then(els => {
+            expect(els).toEqual([ el ]);
+            window.IntersectionObserver = originalIntersectionObserver;
+            done();
+        });
+    });
 });
 
 });
