@@ -1965,4 +1965,45 @@ describe("intersectionOptions", function() {
     });
 });
 
+describe("requireVisible", function() {
+    it("allowMultipleMatches=true emits each visible element without stopping", function() {
+        let originalIntersectionObserver = window.IntersectionObserver;
+        let observers = [];
+        function FakeIntersectionObserver(cb) {
+            this.cb = cb;
+            this.observe = (el) => { this.el = el; };
+            this.unobserve = () => undefined;
+            this.disconnect = () => undefined;
+            observers.push(this);
+        }
+        window.IntersectionObserver = FakeIntersectionObserver;
+
+        let waiter = new WaitForElements({
+            requireVisible: true,
+            allowMultipleMatches: true,
+        });
+        let onMatchFn = jasmine.createSpy("onMatchFn");
+
+        let el1 = document.createElement("div");
+        let el2 = document.createElement("div");
+
+        waiter._waitForElementToIntersect(el1, waiter.options,
+            (element) => waiter._queueVisibleMatch(element, onMatchFn));
+        waiter._waitForElementToIntersect(el2, waiter.options,
+            (element) => waiter._queueVisibleMatch(element, onMatchFn));
+
+        let obs1 = observers.find(obs => obs.el === el1);
+        let obs2 = observers.find(obs => obs.el === el2);
+        obs1.cb([{ isIntersecting: true }]);
+        obs2.cb([{ isIntersecting: true }]);
+
+        expect(onMatchFn).toHaveBeenCalledTimes(2);
+        expect(onMatchFn.calls.argsFor(0)[0]).toEqual([ el1 ]);
+        expect(onMatchFn.calls.argsFor(1)[0]).toEqual([ el2 ]);
+
+        waiter.stop();
+        window.IntersectionObserver = originalIntersectionObserver;
+    });
+});
+
 });
