@@ -1456,8 +1456,18 @@ describe("match", function() {
     });
 
     it("requireVisible continues waiting when filter returns empty (callbacks)", function (done) {
-        jasmine.clock().install();
         this._maindiv.innerHTML = "";
+        let originalIntersectionObserver = window.IntersectionObserver;
+        let observers = [];
+        function FakeIntersectionObserver(cb) {
+            this.cb = cb;
+            this.observe = (el) => { this.el = el; };
+            this.unobserve = () => undefined;
+            this.disconnect = () => undefined;
+            observers.push(this);
+        }
+        window.IntersectionObserver = FakeIntersectionObserver;
+
         let root = document.createElement("div");
         root.style.height = "50px";
         root.style.width = "50px";
@@ -1488,19 +1498,31 @@ describe("match", function() {
         let onMatchFn = jasmine.createSpy("onMatchFn", (els) => {
             expect(els).toEqual([ second ]);
             waiter.stop();
-            jasmine.clock().uninstall();
+            window.IntersectionObserver = originalIntersectionObserver;
             done();
         }).and.callThrough();
 
         waiter.match(onMatchFn);
 
-        root.scrollTop = 220;
-        jasmine.clock().tick(0);
+        let firstObserver = observers.find(obs => obs.el === first);
+        let secondObserver = observers.find(obs => obs.el === second);
+        firstObserver.cb([{ isIntersecting: true }]);
+        secondObserver.cb([{ isIntersecting: true }]);
     });
 
     it("requireVisible continues waiting when filter returns empty (promise)", function (done) {
-        jasmine.clock().install();
         this._maindiv.innerHTML = "";
+        let originalIntersectionObserver = window.IntersectionObserver;
+        let observers = [];
+        function FakeIntersectionObserver(cb) {
+            this.cb = cb;
+            this.observe = (el) => { this.el = el; };
+            this.unobserve = () => undefined;
+            this.disconnect = () => undefined;
+            observers.push(this);
+        }
+        window.IntersectionObserver = FakeIntersectionObserver;
+
         let root = document.createElement("div");
         root.style.height = "50px";
         root.style.width = "50px";
@@ -1531,12 +1553,14 @@ describe("match", function() {
 
         let p = waiter.match();
 
-        root.scrollTop = 220;
-        jasmine.clock().tick(0);
+        let firstObserver = observers.find(obs => obs.el === first);
+        let secondObserver = observers.find(obs => obs.el === second);
+        firstObserver.cb([{ isIntersecting: true }]);
+        secondObserver.cb([{ isIntersecting: true }]);
 
         p.then(els => {
             expect(els).toEqual([ second ]);
-            jasmine.clock().uninstall();
+            window.IntersectionObserver = originalIntersectionObserver;
             done();
         });
     });
@@ -1760,6 +1784,14 @@ describe("stop", function() {
 });
 
 describe("intersection observers", function() {
+    beforeEach(function() {
+        this._originalIntersectionObserver = window.IntersectionObserver;
+    });
+
+    afterEach(function() {
+        window.IntersectionObserver = this._originalIntersectionObserver;
+    });
+
     it("multiple instances do not interfere with each other's observers", function() {
         let obs1 = {
             observe: jasmine.createSpy("observe1"),
@@ -1772,7 +1804,6 @@ describe("intersection observers", function() {
             disconnect: jasmine.createSpy("disconnect2"),
         };
         let ctorCalls = 0;
-        let originalIntersectionObserver = window.IntersectionObserver;
         function FakeIntersectionObserver() {
             ctorCalls += 1;
             return ctorCalls === 1 ? obs1 : obs2;
@@ -1794,8 +1825,6 @@ describe("intersection observers", function() {
 
         expect(obs1.disconnect).toHaveBeenCalled();
         expect(obs2.disconnect).not.toHaveBeenCalled();
-
-        window.IntersectionObserver = originalIntersectionObserver;
     });
 
     it("stop disconnects all tracked intersection observers", function() {
@@ -1810,7 +1839,6 @@ describe("intersection observers", function() {
             disconnect: jasmine.createSpy("disconnect2"),
         };
         let ctorCalls = 0;
-        let originalIntersectionObserver = window.IntersectionObserver;
         function FakeIntersectionObserver() {
             ctorCalls += 1;
             return ctorCalls === 1 ? obs1 : obs2;
@@ -1830,8 +1858,6 @@ describe("intersection observers", function() {
         expect(obs1.disconnect).toHaveBeenCalled();
         expect(obs2.disconnect).toHaveBeenCalled();
         expect(waiter.intersectionObservers.size).toBe(0);
-
-        window.IntersectionObserver = originalIntersectionObserver;
     });
 });
 
