@@ -1518,6 +1518,30 @@ describe("stop", function() {
         expect(waiter.observer).toBe(null);
         expect(waiter.timerId).toBe(null);
     });
+
+    it("prevents reuse after stop", async function () {
+        let waiter = new WaitForElements({
+                target: this._maindiv,
+                selectors: [ "nomatter" ],
+            });
+
+        waiter.stop();
+
+        await expectAsync(waiter.match())
+            .toBeRejectedWithError("WaitForElements instance is stopped and cannot be restarted");
+    });
+
+    it("prevents reuse after stop when callbacks are provided", function () {
+        let waiter = new WaitForElements({
+                target: this._maindiv,
+                selectors: [ "nomatter" ],
+            });
+
+        waiter.stop();
+
+        expect(() => waiter.match(() => undefined, () => undefined))
+            .toThrowError("WaitForElements instance is stopped and cannot be restarted");
+    });
 });
 
 });
