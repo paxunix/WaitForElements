@@ -633,6 +633,14 @@ describe("_applyFilters", function() {
         expect(waiter._applyFilters([ o1, o2, o1 ])).toEqual([ o1, o2, o1 ]);
     });
 
+    it("throws if filter throws", function() {
+        let waiter = new WaitForElements({
+            filter: () => { throw new Error("boom"); },
+        });
+        let o1 = {};
+        expect(() => waiter._applyFilters([ o1 ])).toThrowError("boom");
+    });
+
 });
 
 
@@ -1286,6 +1294,20 @@ describe("match", function() {
         expect(spy_sm).toHaveBeenCalledBefore(spy_cm);
         expect(spy_cm).toHaveBeenCalledBefore(spy_st);
         expect(onMatchFn).toHaveBeenCalledWith([this._maindiv.querySelector("#span1")]);
+    });
+
+    it("rejects when filter throws", async function () {
+        this._maindiv.innerHTML = `<span id=span1>span1</span>`;
+        let waiter = new WaitForElements({
+            target: this._maindiv,
+            selectors: [ "span" ],
+            allowMultipleMatches: false,
+            filter: () => { throw new Error("boom"); },
+        });
+
+        let p = waiter.match();
+
+        await expectAsync(p).toBeRejectedWithError("boom");
     });
 
 
