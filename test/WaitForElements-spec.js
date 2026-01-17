@@ -393,7 +393,7 @@ describe("_getElementsFiltered", function() {
     });
 
 
-    it("filter function filters out matched elements", function() {
+    it("filter function does not apply in _getElementsFiltered", function() {
         this._maindiv.innerHTML = `
         <span id=span1>span1
             <div id=interdiv>
@@ -417,12 +417,13 @@ describe("_getElementsFiltered", function() {
         expect(waiter._getElementsFiltered())
             .toEqual([
                 this._maindiv.querySelector("#span1"),
+                this._maindiv.querySelector("#span2"),
                 this._maindiv.querySelector("#span3"),
             ]);
     });
 
 
-    it("filter function filters out matched elements after seen-check", function() {
+    it("onlyOnce and filter do not apply in _getElementsFiltered", function() {
         this._maindiv.innerHTML = `
         <span id=span1>span1
             <div id=interdiv>
@@ -454,7 +455,11 @@ describe("_getElementsFiltered", function() {
         this._maindiv.append(newspan);
 
         expect(waiter._getElementsFiltered())
-            .toEqual([ ]);
+            .toEqual([
+                this._maindiv.querySelector("#span1"),
+                this._maindiv.querySelector("#span2"),
+                this._maindiv.querySelector("#span3"),
+            ]);
     });
 
 
@@ -646,15 +651,12 @@ describe("_applyFilters", function() {
 
 describe("_handleMutations", function() {
 
-    it("all matching selectors' elements are filtered and returned", function () {
-        let filterSpy = jasmine.createSpy("filterSpy", els => els).and.callThrough();
+    it("all matching selectors' elements are returned", function () {
         let waiter = new WaitForElements({
-            filter: filterSpy,
             selectors: [ "div" ],
         });
         let spy_gefm = spyOn(waiter, "_getElementsFromMutations").and.callThrough();
         let spy_gems= spyOn(WaitForElements, "_getElementsMatchingSelectors").and.callThrough();
-        let spy_af = spyOn(waiter, "_applyFilters").and.callThrough();
         let newdiv = document.createElement("div");
         let mut = {
             type: "childList",
@@ -663,8 +665,6 @@ describe("_handleMutations", function() {
         let els = waiter._handleMutations([mut, mut]);
 
         expect(spy_gefm).toHaveBeenCalledBefore(spy_gems);
-        expect(spy_gems).toHaveBeenCalledBefore(spy_af);
-        expect(spy_af).toHaveBeenCalledOnceWith([newdiv]);
         expect(els).toEqual([newdiv]);
     });
 
