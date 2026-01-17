@@ -339,7 +339,7 @@ class WaitForElements
 
             this.stop();
 
-            onTimeoutFn();
+            onTimeoutFn(new Error(`Timeout ${this.options.timeout} reached waiting for selectors`));
         }, this.options.timeout);
     }
 
