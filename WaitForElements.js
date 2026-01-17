@@ -287,11 +287,11 @@ class WaitForElements
             try {
                 let existingObs = this.intersectionObservers.get(el);
                 if (existingObs)
-                    try { existingObs.disconnect(); } catch (e) { /* ignore */ }
+                    existingObs.disconnect();
                 obs.observe(el);
                 this.intersectionObservers.set(el, obs);
             } catch (err) {
-                try { obs.disconnect(); } catch(e) {}
+                obs.disconnect();
                 this.intersectionObservers.delete(el);
                 reject(err);
             }
@@ -340,16 +340,14 @@ class WaitForElements
                 console.log("Disconnecting observer for selectors:", this.options.selectors);
             }
 
-            try { this.observer.disconnect(); } catch (e) { /* ignore */ }
+            this.observer.disconnect();
             this.observer = null;
         }
 
         if (this.intersectionObservers.size > 0)
         {
             for (let obs of this.intersectionObservers.values())
-            {
-                try { obs.disconnect(); } catch (e) { /* ignore */ }
-            }
+                obs.disconnect();
             this.intersectionObservers.clear();
         }
 
