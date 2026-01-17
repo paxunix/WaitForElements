@@ -2086,6 +2086,90 @@ describe("requireVisible", function() {
             done();
         });
     });
+
+    it("skipExisting=true ignores existing visible elements and matches later mutations (callbacks)", function (done) {
+        let originalIntersectionObserver = window.IntersectionObserver;
+        let observers = [];
+        function FakeIntersectionObserver(cb) {
+            this.cb = cb;
+            this.observe = (el) => { this.el = el; };
+            this.unobserve = () => undefined;
+            this.disconnect = () => undefined;
+            observers.push(this);
+        }
+        window.IntersectionObserver = FakeIntersectionObserver;
+
+        this._maindiv.innerHTML = `<div class="item" id="first">first</div>`;
+        let waiter = new WaitForElements({
+            target: this._maindiv,
+            selectors: [ ".item" ],
+            requireVisible: true,
+            skipExisting: true,
+            allowMultipleMatches: false,
+        });
+        let onMatchFn = jasmine.createSpy("onMatchFn", (els) => {
+            expect(els).toEqual([ this._maindiv.querySelector("#second") ]);
+            waiter.stop();
+            window.IntersectionObserver = originalIntersectionObserver;
+            done();
+        }).and.callThrough();
+
+        waiter.match(onMatchFn);
+
+        expect(onMatchFn).not.toHaveBeenCalled();
+
+        let second = document.createElement("div");
+        second.className = "item";
+        second.id = "second";
+        this._maindiv.append(second);
+
+        window.setTimeout(() => {
+            let obs = observers.find(observer => observer.el === second);
+            expect(obs).toBeDefined();
+            obs.cb([{ isIntersecting: true }]);
+        }, 0);
+    });
+
+    it("skipExisting=true ignores existing visible elements and matches later mutations (promise)", function (done) {
+        let originalIntersectionObserver = window.IntersectionObserver;
+        let observers = [];
+        function FakeIntersectionObserver(cb) {
+            this.cb = cb;
+            this.observe = (el) => { this.el = el; };
+            this.unobserve = () => undefined;
+            this.disconnect = () => undefined;
+            observers.push(this);
+        }
+        window.IntersectionObserver = FakeIntersectionObserver;
+
+        this._maindiv.innerHTML = `<div class="item" id="first">first</div>`;
+        let waiter = new WaitForElements({
+            target: this._maindiv,
+            selectors: [ ".item" ],
+            requireVisible: true,
+            skipExisting: true,
+            allowMultipleMatches: false,
+        });
+
+        let p = waiter.match();
+
+        let second = document.createElement("div");
+        second.className = "item";
+        second.id = "second";
+        this._maindiv.append(second);
+
+        window.setTimeout(() => {
+            let obs = observers.find(observer => observer.el === second);
+            expect(obs).toBeDefined();
+            obs.cb([{ isIntersecting: true }]);
+        }, 0);
+
+        p.then(els => {
+            expect(els).toEqual([ this._maindiv.querySelector("#second") ]);
+            window.IntersectionObserver = originalIntersectionObserver;
+            done();
+        });
+    });
 });
 
 });
