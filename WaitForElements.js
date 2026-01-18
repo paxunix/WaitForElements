@@ -134,6 +134,7 @@ class WaitForElements
 
         newels = this.options.filter(newels);
 
+        /* istanbul ignore next */
         if (this.options.verbose)
             console.log("Elements after applying filter:", newels);
 
@@ -147,6 +148,7 @@ class WaitForElements
 
         let els = WaitForElements._getElementsMatchingSelectors([this.options.target], this.options.selectors);
 
+        /* istanbul ignore next */
         if (this.options.verbose)
             if (els.length > 0)
                 console.log("Found existing elements matching selectors:", els);
@@ -181,6 +183,7 @@ class WaitForElements
     {
         "use strict";
 
+        /* istanbul ignore next */
         if (this.options.verbose == 2)
         {
             console.log("Mutations:", mutations);
@@ -193,6 +196,7 @@ class WaitForElements
 
         if (els.length !== 0)
         {
+            /* istanbul ignore next */
             if (this.options.verbose)
                 console.log("Found mutated elements matching selectors:", els);
         }
@@ -326,6 +330,7 @@ class WaitForElements
 
         this.timerId = window.setTimeout(() => {
 
+            /* istanbul ignore next */
             if (this.options.verbose)
             {
                 console.log(`Timeout ${this.options.timeout} reached for selectors:`, this.options.selectors);
@@ -356,6 +361,7 @@ class WaitForElements
 
         if (this.observer !== null)
         {
+            /* istanbul ignore next */
             if (this.options.verbose)
             {
                 console.log("Disconnecting observer for selectors:", this.options.selectors);
@@ -404,6 +410,7 @@ class WaitForElements
 
                 if (filtered.length === 0)
                 {
+                    /* istanbul ignore next */
                     if (this.options.verbose == 2)
                         console.log("No mutated elements matched after filters");
 
@@ -432,6 +439,7 @@ class WaitForElements
         if (this.stopped)
             throw new Error("WaitForElements instance is stopped and cannot be restarted");
 
+        /* istanbul ignore next */
         if (this.options.verbose)
         {
             console.log("Waiting for selectors:", this.options.selectors);
@@ -460,6 +468,7 @@ class WaitForElements
                     let filtered = this._applyFilters(els);
                     if (filtered.length === 0)
                     {
+                        /* istanbul ignore next */
                         if (this.options.verbose == 2)
                             console.log("No mutated elements matched after filters");
                     }
@@ -517,6 +526,7 @@ class WaitForElements
 }
 
 // Export for module consumers (if used as a module)
+/* istanbul ignore next */
 if (typeof module !== 'undefined' && typeof module.exports !== 'undefined') {
     module.exports = WaitForElements;
 } else {
