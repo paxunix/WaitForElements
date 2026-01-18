@@ -727,6 +727,38 @@ describe("_continueMatching", function() {
 
         expect(observeSpy).toHaveBeenCalledWith(this._maindiv, { subtree: false });
     });
+
+    it("skips elements already tracked by intersectionObservers", function() {
+        let originalMutationObserver = window.MutationObserver;
+        class FakeMutationObserver {
+            constructor(cb) {
+                this.cb = cb;
+            }
+            observe() {}
+        }
+        window.MutationObserver = FakeMutationObserver;
+
+        let waiter = new WaitForElements({
+            target: this._maindiv,
+            selectors: [ "span" ],
+            requireVisible: true,
+        });
+        let el = document.createElement("span");
+        waiter.intersectionObservers.set(el, { disconnect: () => undefined });
+        let spy_wfei = spyOn(waiter, "_waitForElementToIntersect")
+            .and.returnValue(Promise.resolve());
+
+        waiter._continueMatching(() => undefined);
+
+        waiter.observer.cb([{
+            type: "childList",
+            addedNodes: [ el ],
+        }]);
+
+        expect(spy_wfei).not.toHaveBeenCalled();
+
+        window.MutationObserver = originalMutationObserver;
+    });
 });
 
 
