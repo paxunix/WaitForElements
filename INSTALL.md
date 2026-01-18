@@ -27,6 +27,12 @@ npm run test:browser
 You can also open `test/SpecRunner.html` directly in a browser once
 dependencies are installed.
 
+Generate coverage (headless browser with nyc report):
+
+```
+npm run coverage
+```
+
 
 # Releasing
 
