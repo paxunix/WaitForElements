@@ -393,7 +393,8 @@ class WaitForElements
 
             if (this.options.requireVisible)
             {
-                // For each candidate, create a per-element IntersectionObserver and call onMatchFn when visible
+                // For each candidate, create a per-element
+                // IntersectionObserver and call onMatchFn when visible
                 for (let el of els)
                 {
                     if (this.intersectionObservers.has(el))
@@ -449,15 +450,15 @@ class WaitForElements
             {
                 if (this.options.requireVisible)
                 {
-                    // If elements already exist and requireVisible is true, wait per element.
                     // If elements already exist and requireVisible is true,
                     // wait per element.
                     for (let el of els)
                     {
+                        if (this.intersectionObservers.has(el))
                             continue;
-                        this._waitForElementToIntersect(el, this.options,
 
-                            { matchfn: (element) => this._queueVisibleMatch(element, onMatchFn) });
+                        this._waitForElementToIntersect(el, this.options,
+                            (element) => this._queueVisibleMatch(element, onMatchFn));
                     }
                 }
                 else
