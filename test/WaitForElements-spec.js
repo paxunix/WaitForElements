@@ -714,6 +714,47 @@ describe("_queueVisibleMatch", function() {
             done();
         });
     });
+
+    it("returns without matching when pending is cleared before microtask runs", function(done) {
+        let waiter = new WaitForElements({
+            allowMultipleMatches: false,
+        });
+        let onMatchFn = jasmine.createSpy("onMatchFn");
+        let applyFiltersSpy = spyOn(waiter, "_applyFilters").and.callThrough();
+
+        waiter._queueVisibleMatch(document.createElement("div"), onMatchFn);
+        waiter.stop();
+
+        queueMicrotask(() => {
+            expect(onMatchFn).not.toHaveBeenCalled();
+            expect(applyFiltersSpy).not.toHaveBeenCalled();
+            done();
+        });
+    });
+
+    it("allowMultipleMatches=true emits immediately after filters", function() {
+        let waiter = new WaitForElements({
+            allowMultipleMatches: true,
+        });
+        let onMatchFn = jasmine.createSpy("onMatchFn");
+        let el = document.createElement("div");
+
+        waiter._queueVisibleMatch(el, onMatchFn);
+
+        expect(onMatchFn).toHaveBeenCalledWith([ el ]);
+    });
+
+    it("allowMultipleMatches=true returns without matching when filters drop elements", function() {
+        let waiter = new WaitForElements({
+            allowMultipleMatches: true,
+            filter: () => [],
+        });
+        let onMatchFn = jasmine.createSpy("onMatchFn");
+
+        waiter._queueVisibleMatch(document.createElement("div"), onMatchFn);
+
+        expect(onMatchFn).not.toHaveBeenCalled();
+    });
 });
 
 
