@@ -697,6 +697,26 @@ describe("_handleMutations", function() {
 });
 
 
+describe("_queueVisibleMatch", function() {
+    it("returns without matching when filters drop all elements", function (done) {
+        let waiter = new WaitForElements({
+            allowMultipleMatches: false,
+            filter: () => [],
+        });
+        let onMatchFn = jasmine.createSpy("onMatchFn");
+        let stopSpy = spyOn(waiter, "stop").and.callThrough();
+
+        waiter._queueVisibleMatch(document.createElement("div"), onMatchFn);
+
+        queueMicrotask(() => {
+            expect(onMatchFn).not.toHaveBeenCalled();
+            expect(stopSpy).not.toHaveBeenCalled();
+            done();
+        });
+    });
+});
+
+
 describe("_continueMatching", function() {
     beforeEach(function() {
         this._originalMutationObserver = window.MutationObserver;
