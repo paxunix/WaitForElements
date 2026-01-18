@@ -2284,6 +2284,32 @@ describe("requireVisible", function() {
         });
     });
 
+    it("skips existing elements already in intersectionObservers during _startMatching", function () {
+        this._maindiv.innerHTML = `
+        <div class="visible" id="first">first</div>
+        <div class="visible" id="second">second</div>
+        `;
+        let first = this._maindiv.querySelector("#first");
+        let second = this._maindiv.querySelector("#second");
+        let waiter = new WaitForElements({
+            target: this._maindiv,
+            selectors: [ ".visible" ],
+            requireVisible: true,
+        });
+
+        waiter.intersectionObservers.set(first, { disconnect: () => undefined });
+        let spy_wfei = spyOn(waiter, "_waitForElementToIntersect").and.returnValue(Promise.resolve());
+
+        waiter._startMatching(() => undefined, () => undefined);
+
+        expect(spy_wfei).toHaveBeenCalledTimes(1);
+        expect(spy_wfei).toHaveBeenCalledWith(
+            second,
+            waiter.options,
+            jasmine.any(Function)
+        );
+    });
+
     it("allowMultipleMatches=false batches same-tick intersections and stops once", function (done) {
         let originalIntersectionObserver = window.IntersectionObserver;
         let observers = [];
