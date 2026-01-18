@@ -2189,6 +2189,114 @@ describe("requireVisible", function() {
         window.IntersectionObserver = originalIntersectionObserver;
     });
 
+    it("allowMultipleMatches=false waits for visibility before callback", function (done) {
+        let originalIntersectionObserver = window.IntersectionObserver;
+        let observers = [];
+        function FakeIntersectionObserver(cb) {
+            this.cb = cb;
+            this.observe = (el) => { this.el = el; };
+            this.unobserve = () => undefined;
+            this.disconnect = () => undefined;
+            observers.push(this);
+        }
+        window.IntersectionObserver = FakeIntersectionObserver;
+
+        this._maindiv.innerHTML = `<div class="visible">v</div>`;
+        let el = this._maindiv.querySelector(".visible");
+        let waiter = new WaitForElements({
+            target: this._maindiv,
+            selectors: [ ".visible" ],
+            requireVisible: true,
+            allowMultipleMatches: false,
+        });
+        let onMatchFn = jasmine.createSpy("onMatchFn", (els) => {
+            expect(els).toEqual([ el ]);
+            window.IntersectionObserver = originalIntersectionObserver;
+            done();
+        }).and.callThrough();
+
+        waiter.match(onMatchFn);
+
+        expect(onMatchFn).not.toHaveBeenCalled();
+
+        let obs = observers.find(observer => observer.el === el);
+        obs.cb([{ isIntersecting: true }]);
+    });
+
+    it("allowMultipleMatches=false waits for visibility before promise resolves", function (done) {
+        let originalIntersectionObserver = window.IntersectionObserver;
+        let observers = [];
+        function FakeIntersectionObserver(cb) {
+            this.cb = cb;
+            this.observe = (el) => { this.el = el; };
+            this.unobserve = () => undefined;
+            this.disconnect = () => undefined;
+            observers.push(this);
+        }
+        window.IntersectionObserver = FakeIntersectionObserver;
+
+        this._maindiv.innerHTML = `<div class="visible">v</div>`;
+        let el = this._maindiv.querySelector(".visible");
+        let waiter = new WaitForElements({
+            target: this._maindiv,
+            selectors: [ ".visible" ],
+            requireVisible: true,
+            allowMultipleMatches: false,
+        });
+
+        let p = waiter.match();
+
+        let obs = observers.find(observer => observer.el === el);
+        obs.cb([{ isIntersecting: true }]);
+
+        p.then(els => {
+            expect(els).toEqual([ el ]);
+            window.IntersectionObserver = originalIntersectionObserver;
+            done();
+        });
+    });
+
+    it("allowMultipleMatches=false batches same-tick intersections and stops once", function (done) {
+        let originalIntersectionObserver = window.IntersectionObserver;
+        let observers = [];
+        function FakeIntersectionObserver(cb) {
+            this.cb = cb;
+            this.observe = (el) => { this.el = el; };
+            this.unobserve = () => undefined;
+            this.disconnect = () => undefined;
+            observers.push(this);
+        }
+        window.IntersectionObserver = FakeIntersectionObserver;
+
+        this._maindiv.innerHTML = `
+        <div class="visible" id="first">first</div>
+        <div class="visible" id="second">second</div>
+        `;
+        let first = this._maindiv.querySelector("#first");
+        let second = this._maindiv.querySelector("#second");
+        let waiter = new WaitForElements({
+            target: this._maindiv,
+            selectors: [ ".visible" ],
+            requireVisible: true,
+            allowMultipleMatches: false,
+        });
+        let stopSpy = spyOn(waiter, "stop").and.callThrough();
+        let onMatchFn = jasmine.createSpy("onMatchFn", (els) => {
+            let ids = els.map(el => el.id);
+            expect(ids).toEqual([ "first", "second" ]);
+            expect(stopSpy).toHaveBeenCalledTimes(1);
+            window.IntersectionObserver = originalIntersectionObserver;
+            done();
+        }).and.callThrough();
+
+        waiter.match(onMatchFn);
+
+        let obs1 = observers.find(observer => observer.el === first);
+        let obs2 = observers.find(observer => observer.el === second);
+        obs1.cb([{ isIntersecting: true }]);
+        obs2.cb([{ isIntersecting: true }]);
+    });
+
     it("promise resolves when element becomes visible", function (done) {
         let originalIntersectionObserver = window.IntersectionObserver;
         let observers = [];
