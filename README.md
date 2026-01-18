@@ -13,7 +13,7 @@ Does NOT support waiting for elements to be removed from the DOM.
 
 #### options.allowMultipleMatches
 
-Default=false.  If true, matches can continue to be found until timeout.  Otherwise, the first match found will terminate matching.
+Default=false.  If true, matches can continue to be found until timeout.  Otherwise, the first match found will terminate matching.  This is implied to be false if the promise-based behaviour is used (no callback functions for `match()`).
 
 #### options.selectors
 
