@@ -250,7 +250,7 @@ class WaitForElements
     }
 
 
-    _waitForElementToIntersect(el, options, onVisible = null)
+    _waitForElementToIntersect(el, options, onVisible)
     {
         return new Promise((resolve, reject) => {
             let root = options.intersectionOptions?.root ?? null;
@@ -311,17 +311,11 @@ class WaitForElements
                 }
             }, options.intersectionOptions);
 
-            try {
-                let existingObs = this.intersectionObservers.get(el);
-                if (existingObs)
-                    existingObs.disconnect();
-                obs.observe(el);
-                this.intersectionObservers.set(el, obs);
-            } catch (err) {
-                obs.disconnect();
-                this.intersectionObservers.delete(el);
-                reject(err);
-            }
+            let existingObs = this.intersectionObservers.get(el);
+            if (existingObs)
+                existingObs.disconnect();
+            obs.observe(el);
+            this.intersectionObservers.set(el, obs);
         });
     }
 

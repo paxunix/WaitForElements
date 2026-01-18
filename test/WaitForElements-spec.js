@@ -2059,8 +2059,8 @@ describe("intersection observers", function() {
         let waiter1 = new WaitForElements({ requireVisible: true });
         let waiter2 = new WaitForElements({ requireVisible: true });
 
-        waiter1._waitForElementToIntersect(el, waiter1.options, null);
-        waiter2._waitForElementToIntersect(el, waiter2.options, null);
+        waiter1._waitForElementToIntersect(el, waiter1.options, () => undefined);
+        waiter2._waitForElementToIntersect(el, waiter2.options, () => undefined);
 
         expect(waiter1.intersectionObservers.get(el)).toBe(obs1);
         expect(waiter2.intersectionObservers.get(el)).toBe(obs2);
@@ -2094,8 +2094,8 @@ describe("intersection observers", function() {
         let el1 = document.createElement("div");
         let el2 = document.createElement("div");
 
-        waiter._waitForElementToIntersect(el1, waiter.options, null);
-        waiter._waitForElementToIntersect(el2, waiter.options, null);
+        waiter._waitForElementToIntersect(el1, waiter.options, () => undefined);
+        waiter._waitForElementToIntersect(el2, waiter.options, () => undefined);
 
         waiter.stop();
 
@@ -2134,7 +2134,7 @@ describe("intersectionOptions", function() {
         let el = document.createElement("div");
         this._maindiv.append(el);
 
-        waiter._waitForElementToIntersect(el, waiter.options, null);
+        waiter._waitForElementToIntersect(el, waiter.options, () => undefined);
 
         expect(capturedOptions).toEqual(waiter.options.intersectionOptions);
 
@@ -2153,7 +2153,7 @@ describe("intersectionOptions", function() {
         });
         let el = document.createElement("div");
 
-        waiter._waitForElementToIntersect(el, waiter.options, null);
+        waiter._waitForElementToIntersect(el, waiter.options, () => undefined);
 
         expect(warnSpy).toHaveBeenCalled();
         expect(warnSpy.calls.argsFor(0)[0])
@@ -2178,7 +2178,7 @@ describe("intersectionOptions", function() {
             verbose: true,
         });
 
-        waiter._waitForElementToIntersect(el, waiter.options, null);
+        waiter._waitForElementToIntersect(el, waiter.options, () => undefined);
 
         expect(warnSpy).toHaveBeenCalled();
         expect(warnSpy.calls.argsFor(0)[0])
@@ -2200,7 +2200,7 @@ describe("intersectionOptions", function() {
             verbose: true,
         });
 
-        waiter._waitForElementToIntersect(el, waiter.options, null);
+        waiter._waitForElementToIntersect(el, waiter.options, () => undefined);
 
         expect(warnSpy).toHaveBeenCalled();
         expect(warnSpy.calls.argsFor(0)[0])
@@ -2469,10 +2469,10 @@ describe("requireVisible", function() {
         });
         let el = document.createElement("div");
 
-        waiter._waitForElementToIntersect(el, waiter.options, null);
+        waiter._waitForElementToIntersect(el, waiter.options, () => undefined);
         let firstObs = observers.find(observer => observer.el === el);
 
-        waiter._waitForElementToIntersect(el, waiter.options, null);
+        waiter._waitForElementToIntersect(el, waiter.options, () => undefined);
         let secondObs = observers.filter(observer => observer.el === el)[1];
 
         expect(firstObs.disconnect).toHaveBeenCalled();
