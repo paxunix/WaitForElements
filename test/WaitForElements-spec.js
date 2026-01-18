@@ -1525,6 +1525,38 @@ describe("match", function() {
         });
     });
 
+    it("skipExisting=true with allowMultipleMatches emits per mutation and still times out", function (done) {
+        this._maindiv.innerHTML = `<span id="first">first</span>`;
+        let waiter = new WaitForElements({
+            target: this._maindiv,
+            selectors: [ "span" ],
+            skipExisting: true,
+            allowMultipleMatches: true,
+            timeout: 50,
+        });
+        let onMatchFn = jasmine.createSpy("onMatchFn");
+        let onTimeoutFn = jasmine.createSpy("onTimeoutFn", (err) => {
+            let ids = onMatchFn.calls.allArgs().map(args => args[0][0].id);
+            expect(ids).toEqual([ "second", "third" ]);
+            expect(err).toEqual(jasmine.any(Error));
+            expect(err.message).toBe("Timeout 50 reached waiting for selectors");
+            done();
+        }).and.callThrough();
+
+        waiter.match(onMatchFn, onTimeoutFn);
+
+        window.setTimeout(() => {
+            let second = document.createElement("span");
+            second.id = "second";
+            this._maindiv.append(second);
+            window.setTimeout(() => {
+                let third = document.createElement("span");
+                third.id = "third";
+                this._maindiv.append(third);
+            }, 0);
+        }, 0);
+    });
+
 
     it("selectors can be a string and not an array", function (done) {
         this._maindiv.innerHTML = ``;
