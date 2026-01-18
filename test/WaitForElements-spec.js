@@ -860,6 +860,24 @@ describe("_startMatching", function() {
         expect(waiter.observer).toEqual(null);
     });
 
+    it("skipExisting==false, existing matches filtered out, continues matching", function () {
+        this._maindiv.innerHTML = `<span id="span1">span1</span>`;
+        let waiter = new WaitForElements({
+            target: this._maindiv,
+            selectors: [ "span" ],
+            skipExisting: false,
+            filter: () => [],
+        });
+        let onMatchFn = jasmine.createSpy("onMatchFn");
+        let onTimeoutFn = jasmine.createSpy("onTimeoutFn");
+        let spy_cm = spyOn(waiter, "_continueMatching").and.callThrough();
+
+        waiter._startMatching(onMatchFn, onTimeoutFn);
+
+        expect(onMatchFn).not.toHaveBeenCalled();
+        expect(spy_cm).toHaveBeenCalled();
+    });
+
 
     it("skipExisting==false, matching elements show up later, allowMultipleMatches=false, timeout=-1", function (done) {
         this._maindiv.innerHTML = `
