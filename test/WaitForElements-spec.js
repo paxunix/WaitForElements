@@ -1340,6 +1340,34 @@ describe("match", function() {
         expect(onMatchFn).toHaveBeenCalledWith([this._maindiv.querySelector("#span1")]);
     });
 
+    it("uses default no-op handlers when match is called with null callbacks", function () {
+        this._maindiv.innerHTML = `<span id="span1">span1</span>`;
+        let waiter = new WaitForElements({
+            target: this._maindiv,
+            selectors: [ "span" ],
+            allowMultipleMatches: true,
+            skipExisting: false,
+        });
+
+        expect(() => waiter.match(null, null)).not.toThrow();
+    });
+
+    it("defaults onMatchFn when null and onTimeoutFn is provided", function () {
+        this._maindiv.innerHTML = `<span id="span1">span1</span>`;
+        let waiter = new WaitForElements({
+            target: this._maindiv,
+            selectors: [ "span" ],
+            allowMultipleMatches: true,
+            skipExisting: false,
+        });
+        let onTimeoutFn = jasmine.createSpy("onTimeoutFn");
+        let spy_sm = spyOn(waiter, "_startMatching").and.callThrough();
+
+        waiter.match(null, onTimeoutFn);
+
+        expect(spy_sm).toHaveBeenCalledWith(jasmine.any(Function), onTimeoutFn);
+    });
+
     it("onlyOnce=true with allowMultipleMatches=true does not re-emit matches across mutations", function (done) {
         this._maindiv.innerHTML = `
         <span id=span1>span1</span>
