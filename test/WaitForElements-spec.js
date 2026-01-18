@@ -2164,6 +2164,59 @@ describe("intersection observers", function() {
         expect(obs2.disconnect).toHaveBeenCalled();
         expect(waiter.intersectionObservers.size).toBe(0);
     });
+
+    it("invokes onVisible callback when element intersects", function() {
+        let observers = [];
+        function FakeIntersectionObserver(cb) {
+            this.cb = cb;
+            this.observe = (el) => { this.el = el; };
+            this.unobserve = () => undefined;
+            this.disconnect = () => undefined;
+            observers.push(this);
+        }
+        window.IntersectionObserver = FakeIntersectionObserver;
+
+        let waiter = new WaitForElements({ requireVisible: true });
+        let el = document.createElement("div");
+        let onVisible = jasmine.createSpy("onVisible");
+
+        waiter._waitForElementToIntersect(el, waiter.options, onVisible);
+
+        let obs = observers.find(observer => observer.el === el);
+        obs.cb([{ isIntersecting: true }]);
+
+        expect(onVisible).toHaveBeenCalledWith(el);
+    });
+
+    it("resolves when intersecting after a non-intersecting entry without onVisible", function(done) {
+        let observers = [];
+        function FakeIntersectionObserver(cb) {
+            this.cb = cb;
+            this.observe = (el) => { this.el = el; };
+            this.unobserve = jasmine.createSpy("unobserve");
+            this.disconnect = jasmine.createSpy("disconnect");
+            observers.push(this);
+        }
+        window.IntersectionObserver = FakeIntersectionObserver;
+
+        let waiter = new WaitForElements({ requireVisible: true });
+        let el = document.createElement("div");
+
+        waiter._waitForElementToIntersect(el, waiter.options, null)
+            .then(result => {
+                expect(result).toBe(el);
+                let obs = observers.find(observer => observer.el === el);
+                expect(obs.unobserve).toHaveBeenCalledWith(el);
+                expect(obs.disconnect).toHaveBeenCalled();
+                done();
+            });
+
+        let obs = observers.find(observer => observer.el === el);
+        obs.cb([
+            { isIntersecting: false },
+            { isIntersecting: true },
+        ]);
+    });
 });
 
 describe("intersectionOptions", function() {
