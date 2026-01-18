@@ -2451,6 +2451,36 @@ describe("requireVisible", function() {
         obs.cb([{ isIntersecting: true }]);
     });
 
+    it("disconnects an existing observer for the same element", function () {
+        let originalIntersectionObserver = window.IntersectionObserver;
+        let observers = [];
+        function FakeIntersectionObserver(cb) {
+            this.cb = cb;
+            this.observe = (el) => { this.el = el; };
+            this.unobserve = () => undefined;
+            this.disconnect = jasmine.createSpy("disconnect");
+            observers.push(this);
+        }
+        window.IntersectionObserver = FakeIntersectionObserver;
+
+        let waiter = new WaitForElements({
+            requireVisible: true,
+            allowMultipleMatches: false,
+        });
+        let el = document.createElement("div");
+
+        waiter._waitForElementToIntersect(el, waiter.options, null);
+        let firstObs = observers.find(observer => observer.el === el);
+
+        waiter._waitForElementToIntersect(el, waiter.options, null);
+        let secondObs = observers.filter(observer => observer.el === el)[1];
+
+        expect(firstObs.disconnect).toHaveBeenCalled();
+        expect(secondObs).toBeDefined();
+
+        window.IntersectionObserver = originalIntersectionObserver;
+    });
+
     it("skipExisting=true ignores existing visible elements and matches later mutations (callbacks)", function (done) {
         let originalIntersectionObserver = window.IntersectionObserver;
         let observers = [];
