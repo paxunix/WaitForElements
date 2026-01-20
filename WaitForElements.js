@@ -128,7 +128,13 @@ class WaitForElements
             els;
 
         if (!this.options.filter)
+        {
+            /* istanbul ignore next */
+            if (this.options.verbose)
+                console.log("Elements found:", newels);
+
             return newels;
+        }
 
         let oldlen = newels.length;
 
