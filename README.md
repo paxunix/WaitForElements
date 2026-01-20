@@ -2,6 +2,26 @@
 
 Basic promise/callback mechanism to wait for elements meeting constraints to appear in the DOM.
 
+## Usage (Browser)
+
+Classic script (global `WaitForElements`):
+
+```html
+<script src="WaitForElements.js"></script>
+<script>
+  const waiter = new WaitForElements({ selectors: [".item"] });
+</script>
+```
+
+Module script (ESM import):
+
+```html
+<script type="module">
+  import WaitForElements from "./WaitForElements.module.js";
+  const waiter = new WaitForElements({ selectors: [".item"] });
+</script>
+```
+
 Does NOT support waiting for elements to be removed from the DOM.
 
 
