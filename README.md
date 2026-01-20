@@ -2,6 +2,26 @@
 
 Basic promise/callback mechanism to wait for elements meeting constraints to appear in the DOM.
 
+## Usage (Browser)
+
+Classic script (global `WaitForElements`):
+
+```html
+<script src="WaitForElements.js"></script>
+<script>
+  const waiter = new WaitForElements({ selectors: [".item"] });
+</script>
+```
+
+Module script (ESM import):
+
+```html
+<script type="module">
+  import WaitForElements from "./WaitForElements.module.js";
+  const waiter = new WaitForElements({ selectors: [".item"] });
+</script>
+```
+
 Does NOT support waiting for elements to be removed from the DOM.
 
 
@@ -13,7 +33,7 @@ Does NOT support waiting for elements to be removed from the DOM.
 
 #### options.allowMultipleMatches
 
-Default=false.  If true, matches can continue to be found until timeout.  Otherwise, the first match found will terminate matching.
+Default=false.  If true, matches can continue to be found until timeout.  Otherwise, the first match found will terminate matching.  This is implied to be false if the promise-based behaviour is used (no callback functions for `match()`).
 
 #### options.selectors
 
@@ -39,11 +59,24 @@ Default=`-1`.  The promise is rejected or match()'s `onTimeoutFn` is called if n
 
 #### options.filter
 
-Default = no-op (no filtering).  Function that takes an array of elements that match `options.selectors` and returns a new (possibly empty) array of elements.  If the returned array is empty, waiting continues (if the timeout permits).  Otherwise, the promise is resolved or match()'s `onMatchFn` is called with the returned array of unique elements.
+Default = no-op (no filtering).  Function that takes an array of elements that match `options.selectors` (and also are
+visible, based on `requireVisible`) and returns a new (possibly empty) array of elements.  If the returned array is empty,
+waiting continues (if the timeout permits).  Otherwise, the promise is resolved or match()'s `onMatchFn` is called with the
+returned array of unique elements.  The intent is that any element satisfying the detection and visibility criteria is an
+input to the filter, and the filter can do anything it wants to the input, and return anything it wants as the resolved set
+of elements.
 
 #### options.observerOptions
 
 Default is to observe all child nodes, subtrees, attributes, and character data at and under `target`.  If given, must conform to the `MutationObserver.observe()` API's options.
+
+#### options.requireVisible
+
+Default=`false`.  If true, matched DOM elements must also intersect at least one pixel with the viewport.  See `intersectionOptions` about configuring the intersection behaviour.
+
+#### options.intersectionOptions
+
+Default = undefined.  If given, must conform to the `IntersectionObserver.observe()` API's options.
 
 #### options.verbose
 
@@ -52,7 +85,7 @@ Default=`false`.  Log diagnostic information to the console.  If you want the ac
 
 ### _WaitForElements.match(onMatchFn, onTimeoutFn)_
 
-Wait for DOM elements to exist for which particular constraints are true.  The mutation observer used will fire for added nodes, attribute changes, and text changes.
+Wait for DOM elements to exist for which particular constraints are true.  The mutation observer used will fire for added nodes, attribute changes, and text changes.  An intersection observer can be used to wait for the DOM elements to also become visible in the viewport.
 
 #### Return
 

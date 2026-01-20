@@ -2,9 +2,7 @@
 
 class WaitForElements
 {
-
-    static _version = "2.0.4";
-
+    static _version = "3.0.0";
 
     constructor(options)
     {
@@ -14,6 +12,10 @@ class WaitForElements
         this.seen = new Map();
         this.observer = null;
         this.timerId = null;
+        this.intersectionObservers = new Map();
+        this.pendingVisible = null;
+        this.pendingVisibleScheduled = false;
+        this.stopped = false;
     }
 
 
@@ -83,12 +85,12 @@ class WaitForElements
                 childList: true,
                 subtree: true,
             },
+            requireVisible: false,
             verbose: false,
         };
 
         return Object.assign({}, builtinDefaults, defaults ?? {}, options);
     }
-
 
     static _getElementsMatchingSelectors(els, selectors)
     {
@@ -121,17 +123,24 @@ class WaitForElements
     {
         "use strict";
 
-        if (!this.options.filter)
-            return els;
-
         let newels = this.options.onlyOnce ?
             this._filterOutSeenElements(els) :
             els;
+
+        if (!this.options.filter)
+        {
+            /* istanbul ignore next */
+            if (this.options.verbose)
+                console.log("Elements found:", newels);
+
+            return newels;
+        }
 
         let oldlen = newels.length;
 
         newels = this.options.filter(newels);
 
+        /* istanbul ignore next */
         if (this.options.verbose)
             console.log("Elements after applying filter:", newels);
 
@@ -139,17 +148,16 @@ class WaitForElements
     }
 
 
-    _getElementsFiltered()
+    _getMatchingElements()
     {
         "use strict";
 
         let els = WaitForElements._getElementsMatchingSelectors([this.options.target], this.options.selectors);
 
+        /* istanbul ignore next */
         if (this.options.verbose)
             if (els.length > 0)
                 console.log("Found existing elements matching selectors:", els);
-
-        els = this._applyFilters(els);
 
         return els;
     }
@@ -181,6 +189,7 @@ class WaitForElements
     {
         "use strict";
 
+        /* istanbul ignore next */
         if (this.options.verbose == 2)
         {
             console.log("Mutations:", mutations);
@@ -193,22 +202,141 @@ class WaitForElements
 
         if (els.length !== 0)
         {
+            /* istanbul ignore next */
             if (this.options.verbose)
                 console.log("Found mutated elements matching selectors:", els);
         }
 
-        els = this._applyFilters(els);
-
         return els;
     }
 
+    _queueVisibleMatch(el, onMatchFn)
+    {
+        "use strict";
 
+        if (this.options.allowMultipleMatches)
+        {
+            let filtered = this._applyFilters([el]);
+            if (filtered.length > 0)
+                onMatchFn(filtered);
+            return;
+        }
+
+        // pendingVisible is the microtask queue buffer for elements that
+        // became visible if allowMultipleMatches is false.  Multiple
+        // elements can intersect in the same tick (or in rapid succession)
+        // and we push them into pendingVisible so they can be delivered as
+        // a single batch to onMatchFn after the current call stack.
+        if (!this.pendingVisible)
+            this.pendingVisible = [];
+
+        this.pendingVisible.push(el);
+
+        // pendingVisibleScheduled is the guard that ensures only one
+        // queueMicrotask is scheduled at a time.  Without it, every visible
+        // element would schedule its own microtask, potentially calling
+        // stop/onMatchFn multiple times and defeating the "single match"
+        // behavior. It also lets _disconnectObserver reset state cleanly
+        // when stopping.
+        if (!this.pendingVisibleScheduled)
+        {
+            this.pendingVisibleScheduled = true;
+            queueMicrotask(() => {
+                let pending = this.pendingVisible;
+                this.pendingVisible = null;
+                this.pendingVisibleScheduled = false;
+
+                if (!pending || pending.length === 0)
+                    return;
+
+                let filtered = this._applyFilters(pending);
+                if (filtered.length === 0)
+                    return;
+
+                this.stop();
+                onMatchFn(filtered);
+            });
+        }
+    }
+
+
+    _waitForElementToIntersect(el, options, onVisible)
+    {
+        return new Promise((resolve, reject) => {
+            let root = options.intersectionOptions?.root ?? null;
+
+            if (root !== null)
+            {
+                if (!(root instanceof Element))
+                {
+                    /* istanbul ignore next */
+                    if (options.verbose)
+                        console.warn("intersectionOptions.root is not an Element; skipping observe", root);
+
+                    return;
+                }
+
+                if (!root.isConnected && options.verbose)
+                    console.warn("intersectionOptions.root is not connected; intersections may never fire", root);
+
+                if (!root.contains(el))
+                {
+                    /* istanbul ignore next */
+                    if (options.verbose)
+                        console.warn("Element is not contained within intersectionOptions.root; skipping observe", el, root);
+
+                    return;
+                }
+            }
+
+            let prevIntersecting = false;
+            let obs = new IntersectionObserver((entries) => {
+                for (let entry of entries)
+                {
+                    let nowIntersecting = entry.isIntersecting;
+                    if (!prevIntersecting && nowIntersecting)
+                    {
+                        if (!options.allowMultipleMatches)
+                        {
+                            obs.unobserve(el);
+                            obs.disconnect();
+                            this.intersectionObservers.delete(el);
+                        }
+
+                        try {
+                            // We need an explicit callback here because the
+                            // promise resolves only once;
+                            // allowMultipleMatches relies on repeated
+                            // observer callbacks to emit multiple visible
+                            // matches, so this ensures the original
+                            // callback function is invoked.
+                            if (onVisible) onVisible(el);
+                            resolve(el);
+                        } catch (err) {
+                            reject(err);
+                        }
+                    }
+
+                    prevIntersecting = nowIntersecting;
+                }
+            }, options.intersectionOptions);
+
+            let existingObs = this.intersectionObservers.get(el);
+            if (existingObs)
+                existingObs.disconnect();
+            obs.observe(el);
+            this.intersectionObservers.set(el, obs);
+        });
+    }
+
+    // --- timeout / mutation observer lifecycle ---
     _setupTimeout(onTimeoutFn)
     {
         "use strict";
 
         this.timerId = window.setTimeout(() => {
 
+            /* istanbul ignore next */
             if (this.options.verbose)
             {
                 console.log(`Timeout ${this.options.timeout} reached for selectors:`, this.options.selectors);
@@ -216,7 +344,7 @@ class WaitForElements
 
             this.stop();
 
-            onTimeoutFn();
+            onTimeoutFn(new Error(`Timeout ${this.options.timeout} reached waiting for selectors`));
         }, this.options.timeout);
     }
 
@@ -239,14 +367,31 @@ class WaitForElements
 
         if (this.observer !== null)
         {
+            /* istanbul ignore next */
             if (this.options.verbose)
             {
-                console.log("Disconnecting observer for selectors:", this.options.selectors);
+                console.log("Disconnecting mutation observer for selectors:", this.options.selectors);
             }
 
             this.observer.disconnect();
             this.observer = null;
         }
+
+        if (this.intersectionObservers.size > 0)
+        {
+            /* istanbul ignore next */
+            if (this.options.verbose)
+            {
+                console.log("Disconnecting intersection observers for selectors:", this.options.selectors);
+            }
+
+            for (let obs of this.intersectionObservers.values())
+                obs.disconnect();
+            this.intersectionObservers.clear();
+        }
+
+        this.pendingVisible = null;
+        this.pendingVisibleScheduled = false;
     }
 
 
@@ -256,12 +401,38 @@ class WaitForElements
 
         this.observer = new MutationObserver(mutations => {
             let els = this._handleMutations(mutations);
+            if (els.length === 0) return;
 
-            if (els.length > 0)
+            if (this.options.requireVisible)
             {
-                onMatchFn(els);
+                // For each candidate, create a per-element
+                // IntersectionObserver and call onMatchFn when visible
+                for (let el of els)
+                {
+                    if (this.intersectionObservers.has(el))
+                        continue;
 
-                if (!this.options.allowMultipleMatches)
+                    this._waitForElementToIntersect(el, this.options,
+                        (element) => this._queueVisibleMatch(element, onMatchFn));
+                }
+            }
+            else
+            {
+                let filtered = this._applyFilters(els);
+
+                if (filtered.length === 0)
+                {
+                    /* istanbul ignore next */
+                    if (this.options.verbose == 2)
+                        console.log("No mutated elements matched after filters");
+
+                    filtered = null;
+                }
+
+                if (filtered)
+                    onMatchFn(filtered);
+
+                if (filtered && !this.options.allowMultipleMatches)
                 {
                     this.stop();
                     return;
@@ -277,22 +448,52 @@ class WaitForElements
     {
         "use strict";
 
+        if (this.stopped)
+            throw new Error("WaitForElements instance is stopped and cannot be restarted");
+
+        /* istanbul ignore next */
         if (this.options.verbose)
         {
             console.log("Waiting for selectors:", this.options.selectors);
         }
 
-        if (!this.options.skipExisting)
+        if (!this.options.skipExisting || this.options.requireVisible)
         {
-            let els = this._getElementsFiltered();
+            let els = this._getMatchingElements();
             if (els.length > 0)
             {
-                onMatchFn(els);
-
-                if (!this.options.allowMultipleMatches)
+                if (this.options.requireVisible)
                 {
-                    this.stop();
-                    return;
+                    // If elements already exist and requireVisible is true,
+                    // wait per element.
+                    for (let el of els)
+                    {
+                        if (this.intersectionObservers.has(el))
+                            continue;
+
+                        this._waitForElementToIntersect(el, this.options,
+                            (element) => this._queueVisibleMatch(element, onMatchFn));
+                    }
+                }
+                else
+                {
+                    let filtered = this._applyFilters(els);
+                    if (filtered.length === 0)
+                    {
+                        /* istanbul ignore next */
+                        if (this.options.verbose == 2)
+                            console.log("No mutated elements matched after filters");
+                    }
+                    else
+                    {
+                        onMatchFn(filtered);
+
+                        if (!this.options.allowMultipleMatches)
+                        {
+                            this.stop();
+                            return;
+                        }
+                    }
                 }
             }
         }
@@ -329,9 +530,17 @@ class WaitForElements
     {
         "use strict";
 
+        this.stopped = true;
         this._disconnectObserver();
         this._clearTimeout();
     }
 
+}
 
-}   // class WaitForElements
+// Export for module consumers (if used as a module)
+/* istanbul ignore next */
+if (typeof module !== 'undefined' && typeof module.exports !== 'undefined') {
+    module.exports = WaitForElements;
+} else {
+    window.WaitForElements = WaitForElements;
+}

@@ -192,6 +192,7 @@ describe("_normalizeOptions", function() {
                     childList: true,
                     subtree: true,
                 },
+                requireVisible: false,
                 verbose: false,
             });
     });
@@ -215,6 +216,7 @@ describe("_normalizeOptions", function() {
                     childList: true,
                     subtree: true,
                 },
+                requireVisible: false,
                 verbose: false,
             });
         });
@@ -238,6 +240,7 @@ describe("_normalizeOptions", function() {
                     childList: true,
                     subtree: true,
                 },
+                requireVisible: false,
                 verbose: false,
             });
         });
@@ -259,6 +262,7 @@ describe("_normalizeOptions", function() {
             skipExisting: false,
             timeout: -1,
             observerOptions: { subtree: false },
+            requireVisible: false,
             verbose: true,
         });
     });
@@ -326,6 +330,7 @@ describe("constructor", function() {
                         childList: true,
                         subtree: true,
                     },
+                    requireVisible: false,
                     verbose: false,
                 },
                 seen: jasmine.any(Map),
@@ -353,7 +358,7 @@ describe("_filterOutSeenElements", function() {
 });
 
 
-describe("_getElementsFiltered", function() {
+describe("_getMatchingElements", function() {
 
 
     it("returns existing elements that have not been matched", function() {
@@ -379,7 +384,7 @@ describe("_getElementsFiltered", function() {
             selectors: "span",
         });
 
-        expect(waiter._getElementsFiltered())
+        expect(waiter._getMatchingElements())
             .toEqual([
                 this._maindiv.querySelector("#span1"),
                 this._maindiv.querySelector("#span2"),
@@ -388,7 +393,7 @@ describe("_getElementsFiltered", function() {
     });
 
 
-    it("filter function filters out matched elements", function() {
+    it("filter function does not apply in _getMatchingElements", function() {
         this._maindiv.innerHTML = `
         <span id=span1>span1
             <div id=interdiv>
@@ -409,15 +414,16 @@ describe("_getElementsFiltered", function() {
             filter: els => els.filter(e => e.id !== "span2"),
         });
 
-        expect(waiter._getElementsFiltered())
+        expect(waiter._getMatchingElements())
             .toEqual([
                 this._maindiv.querySelector("#span1"),
+                this._maindiv.querySelector("#span2"),
                 this._maindiv.querySelector("#span3"),
             ]);
     });
 
 
-    it("filter function filters out matched elements after seen-check", function() {
+    it("onlyOnce and filter do not apply in _getMatchingElements", function() {
         this._maindiv.innerHTML = `
         <span id=span1>span1
             <div id=interdiv>
@@ -438,7 +444,7 @@ describe("_getElementsFiltered", function() {
             filter: els => els.filter(e => e.id !== "span3"),
         });
 
-        expect(waiter._getElementsFiltered())
+        expect(waiter._getMatchingElements())
             .toEqual([
                 this._maindiv.querySelector("#span1"),
                 this._maindiv.querySelector("#span2"),
@@ -448,8 +454,12 @@ describe("_getElementsFiltered", function() {
         newspan.id = "span3";
         this._maindiv.append(newspan);
 
-        expect(waiter._getElementsFiltered())
-            .toEqual([ ]);
+        expect(waiter._getMatchingElements())
+            .toEqual([
+                this._maindiv.querySelector("#span1"),
+                this._maindiv.querySelector("#span2"),
+                this._maindiv.querySelector("#span3"),
+            ]);
     });
 
 
@@ -472,11 +482,22 @@ describe("_getElementsFiltered", function() {
             selectors: [ "span", "#span1", "#span2" ]
         });
 
-        expect(waiter._getElementsFiltered())
+        expect(waiter._getMatchingElements())
             .toEqual([
                 this._maindiv.querySelector("#span1"),
                 this._maindiv.querySelector("#span2"),
             ]);
+    });
+
+    it("includes the root element when it matches selectors", function() {
+        this._maindiv.innerHTML = `<span id=span1>span1</span>`;
+        let waiter = new WaitForElements({
+            target: this._maindiv,
+            selectors: [ "#_maindiv" ],
+        });
+
+        expect(waiter._getMatchingElements())
+            .toEqual([ this._maindiv ]);
     });
 
 });
@@ -510,6 +531,9 @@ describe("_setupTimeout", function() {
 
         expect(waiter.observer).toBe(null);
         expect(callbackFn).toHaveBeenCalledTimes(1);
+        expect(callbackFn).toHaveBeenCalledWith(jasmine.any(Error));
+        expect(callbackFn.calls.argsFor(0)[0].message)
+            .toBe("Timeout 10000 reached waiting for selectors");
     });
 
 });
@@ -625,7 +649,15 @@ describe("_applyFilters", function() {
         let waiter = new WaitForElements({ onlyOnce: true, filter: null });
         let o1 = {};
         let o2 = {};
-        expect(waiter._applyFilters([ o1, o2, o1 ])).toEqual([ o1, o2, o1 ]);
+        expect(waiter._applyFilters([ o1, o2, o1 ])).toEqual([ o1, o2 ]);
+    });
+
+    it("throws if filter throws", function() {
+        let waiter = new WaitForElements({
+            filter: () => { throw new Error("boom"); },
+        });
+        let o1 = {};
+        expect(() => waiter._applyFilters([ o1 ])).toThrowError("boom");
     });
 
 });
@@ -633,15 +665,12 @@ describe("_applyFilters", function() {
 
 describe("_handleMutations", function() {
 
-    it("all matching selectors' elements are filtered and returned", function () {
-        let filterSpy = jasmine.createSpy("filterSpy", els => els).and.callThrough();
+    it("all matching selectors' elements are returned", function () {
         let waiter = new WaitForElements({
-            filter: filterSpy,
             selectors: [ "div" ],
         });
         let spy_gefm = spyOn(waiter, "_getElementsFromMutations").and.callThrough();
         let spy_gems= spyOn(WaitForElements, "_getElementsMatchingSelectors").and.callThrough();
-        let spy_af = spyOn(waiter, "_applyFilters").and.callThrough();
         let newdiv = document.createElement("div");
         let mut = {
             type: "childList",
@@ -650,8 +679,6 @@ describe("_handleMutations", function() {
         let els = waiter._handleMutations([mut, mut]);
 
         expect(spy_gefm).toHaveBeenCalledBefore(spy_gems);
-        expect(spy_gems).toHaveBeenCalledBefore(spy_af);
-        expect(spy_af).toHaveBeenCalledOnceWith([newdiv]);
         expect(els).toEqual([newdiv]);
     });
 
@@ -666,6 +693,67 @@ describe("_handleMutations", function() {
         };
         expect(waiter._handleMutations([mut]))
             .toEqual([]);
+    });
+});
+
+
+describe("_queueVisibleMatch", function() {
+    it("returns without matching when filters drop all elements", function (done) {
+        let waiter = new WaitForElements({
+            allowMultipleMatches: false,
+            filter: () => [],
+        });
+        let onMatchFn = jasmine.createSpy("onMatchFn");
+        let stopSpy = spyOn(waiter, "stop").and.callThrough();
+
+        waiter._queueVisibleMatch(document.createElement("div"), onMatchFn);
+
+        queueMicrotask(() => {
+            expect(onMatchFn).not.toHaveBeenCalled();
+            expect(stopSpy).not.toHaveBeenCalled();
+            done();
+        });
+    });
+
+    it("returns without matching when pending is cleared before microtask runs", function(done) {
+        let waiter = new WaitForElements({
+            allowMultipleMatches: false,
+        });
+        let onMatchFn = jasmine.createSpy("onMatchFn");
+        let applyFiltersSpy = spyOn(waiter, "_applyFilters").and.callThrough();
+
+        waiter._queueVisibleMatch(document.createElement("div"), onMatchFn);
+        waiter.stop();
+
+        queueMicrotask(() => {
+            expect(onMatchFn).not.toHaveBeenCalled();
+            expect(applyFiltersSpy).not.toHaveBeenCalled();
+            done();
+        });
+    });
+
+    it("allowMultipleMatches=true emits immediately after filters", function() {
+        let waiter = new WaitForElements({
+            allowMultipleMatches: true,
+        });
+        let onMatchFn = jasmine.createSpy("onMatchFn");
+        let el = document.createElement("div");
+
+        waiter._queueVisibleMatch(el, onMatchFn);
+
+        expect(onMatchFn).toHaveBeenCalledWith([ el ]);
+    });
+
+    it("allowMultipleMatches=true returns without matching when filters drop elements", function() {
+        let waiter = new WaitForElements({
+            allowMultipleMatches: true,
+            filter: () => [],
+        });
+        let onMatchFn = jasmine.createSpy("onMatchFn");
+
+        waiter._queueVisibleMatch(document.createElement("div"), onMatchFn);
+
+        expect(onMatchFn).not.toHaveBeenCalled();
     });
 });
 
@@ -700,6 +788,38 @@ describe("_continueMatching", function() {
 
         expect(observeSpy).toHaveBeenCalledWith(this._maindiv, { subtree: false });
     });
+
+    it("skips elements already tracked by intersectionObservers", function() {
+        let originalMutationObserver = window.MutationObserver;
+        class FakeMutationObserver {
+            constructor(cb) {
+                this.cb = cb;
+            }
+            observe() {}
+        }
+        window.MutationObserver = FakeMutationObserver;
+
+        let waiter = new WaitForElements({
+            target: this._maindiv,
+            selectors: [ "span" ],
+            requireVisible: true,
+        });
+        let el = document.createElement("span");
+        waiter.intersectionObservers.set(el, { disconnect: () => undefined });
+        let spy_wfei = spyOn(waiter, "_waitForElementToIntersect")
+            .and.returnValue(Promise.resolve());
+
+        waiter._continueMatching(() => undefined);
+
+        waiter.observer.cb([{
+            type: "childList",
+            addedNodes: [ el ],
+        }]);
+
+        expect(spy_wfei).not.toHaveBeenCalled();
+
+        window.MutationObserver = originalMutationObserver;
+    });
 });
 
 
@@ -726,7 +846,7 @@ describe("_startMatching", function() {
                 selectors: [ "span" ],
                 skipExisting: false,
             });
-        let spy_gee = spyOn(waiter, "_getElementsFiltered").and.callThrough();
+        let spy_gee = spyOn(waiter, "_getMatchingElements").and.callThrough();
         let spy_hm = spyOn(waiter, "_handleMutations").and.callThrough();
         let spy_st = spyOn(waiter, "_setupTimeout").and.callThrough();
 
@@ -738,6 +858,24 @@ describe("_startMatching", function() {
         expect(spy_hm).not.toHaveBeenCalled();
         expect(spy_st).not.toHaveBeenCalled();
         expect(waiter.observer).toEqual(null);
+    });
+
+    it("skipExisting==false, existing matches filtered out, continues matching", function () {
+        this._maindiv.innerHTML = `<span id="span1">span1</span>`;
+        let waiter = new WaitForElements({
+            target: this._maindiv,
+            selectors: [ "span" ],
+            skipExisting: false,
+            filter: () => [],
+        });
+        let onMatchFn = jasmine.createSpy("onMatchFn");
+        let onTimeoutFn = jasmine.createSpy("onTimeoutFn");
+        let spy_cm = spyOn(waiter, "_continueMatching").and.callThrough();
+
+        waiter._startMatching(onMatchFn, onTimeoutFn);
+
+        expect(onMatchFn).not.toHaveBeenCalled();
+        expect(spy_cm).toHaveBeenCalled();
     });
 
 
@@ -760,7 +898,7 @@ describe("_startMatching", function() {
                 skipExisting: false,
             });
         let onTimeoutFn = jasmine.createSpy("onTimeoutFn");
-        let spy_gee = spyOn(waiter, "_getElementsFiltered").and.callThrough();
+        let spy_gee = spyOn(waiter, "_getMatchingElements").and.callThrough();
         let spy_hm = spyOn(waiter, "_handleMutations").and.callThrough();
         let spy_st = spyOn(waiter, "_setupTimeout").and.callThrough();
         let spy_stop = spyOn(waiter, "stop").and.callThrough();
@@ -826,7 +964,7 @@ describe("_startMatching", function() {
                 skipExisting: false,
                 allowMultipleMatches: true,
             });
-        let spy_gee = spyOn(waiter, "_getElementsFiltered").and.callThrough();
+        let spy_gee = spyOn(waiter, "_getMatchingElements").and.callThrough();
         let spy_cm = spyOn(waiter, "_continueMatching").and.callThrough();
         let spy_st = spyOn(waiter, "_setupTimeout").and.callThrough();
 
@@ -868,7 +1006,7 @@ describe("_startMatching", function() {
                 skipExisting: true,
                 allowMultipleMatches: false,
             });
-        let spy_gee = spyOn(waiter, "_getElementsFiltered").and.callThrough();
+        let spy_gee = spyOn(waiter, "_getMatchingElements").and.callThrough();
         let spy_st = spyOn(waiter, "_setupTimeout").and.callThrough();
 
         waiter._startMatching(onMatchFn, onTimeoutFn);
@@ -919,7 +1057,7 @@ describe("_startMatching", function() {
                 skipExisting: true,
                 allowMultipleMatches: true,
             });
-        let spy_gee = spyOn(waiter, "_getElementsFiltered").and.callThrough();
+        let spy_gee = spyOn(waiter, "_getMatchingElements").and.callThrough();
         let spy_cm = spyOn(waiter, "_continueMatching").and.callThrough();
         let spy_st = spyOn(waiter, "_setupTimeout").and.callThrough();
 
@@ -976,7 +1114,7 @@ describe("_startMatching", function() {
                 allowMultipleMatches: false,
                 timeout: 10000,
             });
-        let spy_gee = spyOn(waiter, "_getElementsFiltered").and.callThrough();
+        let spy_gee = spyOn(waiter, "_getMatchingElements").and.callThrough();
         let spy_hm = spyOn(waiter, "_handleMutations").and.callThrough();
         let spy_st = spyOn(waiter, "_setupTimeout").and.callThrough();
 
@@ -1014,10 +1152,12 @@ describe("_startMatching", function() {
         let onMatchFn;
         let onTimeoutFn;
         let spy_do;
-        onTimeoutFn = jasmine.createSpy("onTimeoutFn", () => {
+        onTimeoutFn = jasmine.createSpy("onTimeoutFn", (err) => {
             expect(spy_do).toHaveBeenCalled();
             expect(onMatchFn).toHaveBeenCalledTimes(2);
             expect(onTimeoutFn).toHaveBeenCalledTimes(1);
+            expect(err).toEqual(jasmine.any(Error));
+            expect(err.message).toBe("Timeout 10000 reached waiting for selectors");
 
             done();
         }).and.callThrough();
@@ -1035,7 +1175,7 @@ describe("_startMatching", function() {
                 allowMultipleMatches: true,
                 timeout: 10000,
             });
-        let spy_gee = spyOn(waiter, "_getElementsFiltered").and.callThrough();
+        let spy_gee = spyOn(waiter, "_getMatchingElements").and.callThrough();
         let spy_cm = spyOn(waiter, "_continueMatching").and.callThrough();
         let spy_st = spyOn(waiter, "_setupTimeout").and.callThrough();
         spy_do = spyOn(waiter, "_disconnectObserver").and.callThrough();
@@ -1065,6 +1205,30 @@ describe("_startMatching", function() {
         // Note that for the mutation to be detected, the observer handler function needs to run, which can only happen once this function has returned.  So, we have to advance the clock past the timeout within the match function (see above).
     });
 
+    it("skipExisting==false, allowMultipleMatches=true, timeout fires even after immediate matches", function () {
+        this._maindiv.innerHTML = `
+        <span id=span1>span1</span>
+        `;
+        let onMatchFn = jasmine.createSpy("onMatchFn");
+        let onTimeoutFn = jasmine.createSpy("onTimeoutFn");
+        let waiter = new WaitForElements({
+                target: this._maindiv,
+                selectors: [ "span" ],
+                skipExisting: false,
+                allowMultipleMatches: true,
+                timeout: 10000,
+            });
+
+        waiter._startMatching(onMatchFn, onTimeoutFn);
+
+        expect(onMatchFn).toHaveBeenCalledWith([this._maindiv.querySelector("#span1")]);
+        jasmine.clock().tick(11000);
+
+        expect(onTimeoutFn).toHaveBeenCalledWith(jasmine.any(Error));
+        expect(onTimeoutFn.calls.argsFor(0)[0].message)
+            .toBe("Timeout 10000 reached waiting for selectors");
+    });
+
 
     it("skipExisting==true, allowMultipleMatches=false, exceeding timeout", function () {
         this._maindiv.innerHTML = `
@@ -1088,7 +1252,7 @@ describe("_startMatching", function() {
                 allowMultipleMatches: false,
                 timeout: 10000,
             });
-        let spy_gee = spyOn(waiter, "_getElementsFiltered").and.callThrough();
+        let spy_gee = spyOn(waiter, "_getMatchingElements").and.callThrough();
         let spy_hm = spyOn(waiter, "_handleMutations").and.callThrough();
         let spy_st = spyOn(waiter, "_setupTimeout").and.callThrough();
 
@@ -1102,7 +1266,9 @@ describe("_startMatching", function() {
         expect(waiter.observer).not.toEqual(null);
 
         jasmine.clock().tick(11000);
-        expect(onTimeoutFn).toHaveBeenCalled();
+        expect(onTimeoutFn).toHaveBeenCalledWith(jasmine.any(Error));
+        expect(onTimeoutFn.calls.argsFor(0)[0].message)
+            .toBe("Timeout 10000 reached waiting for selectors");
     });
 
 
@@ -1122,10 +1288,12 @@ describe("_startMatching", function() {
         let onMatchFn;
         let onTimeoutFn;
         let spy_do;
-        onTimeoutFn = jasmine.createSpy("onTimeoutFn", () => {
+        onTimeoutFn = jasmine.createSpy("onTimeoutFn", (err) => {
             expect(spy_do).toHaveBeenCalled();
             expect(onMatchFn).toHaveBeenCalledWith([this._maindiv.querySelector("#newspan")]);
             expect(onTimeoutFn).toHaveBeenCalledTimes(1);
+            expect(err).toEqual(jasmine.any(Error));
+            expect(err.message).toBe("Timeout 10000 reached waiting for selectors");
 
             done();
         }).and.callThrough();
@@ -1143,7 +1311,7 @@ describe("_startMatching", function() {
                 allowMultipleMatches: true,
                 timeout: 10000,
             });
-        let spy_gee = spyOn(waiter, "_getElementsFiltered").and.callThrough();
+        let spy_gee = spyOn(waiter, "_getMatchingElements").and.callThrough();
         let spy_cm = spyOn(waiter, "_continueMatching").and.callThrough();
         let spy_st = spyOn(waiter, "_setupTimeout").and.callThrough();
         spy_do = spyOn(waiter, "_disconnectObserver").and.callThrough();
@@ -1283,6 +1451,458 @@ describe("match", function() {
         expect(onMatchFn).toHaveBeenCalledWith([this._maindiv.querySelector("#span1")]);
     });
 
+    it("uses default no-op handlers when match is called with null callbacks", function () {
+        this._maindiv.innerHTML = `<span id="span1">span1</span>`;
+        let waiter = new WaitForElements({
+            target: this._maindiv,
+            selectors: [ "span" ],
+            allowMultipleMatches: true,
+            skipExisting: false,
+        });
+
+        expect(() => waiter.match(null, null)).not.toThrow();
+    });
+
+    it("defaults onMatchFn when null and onTimeoutFn is provided", function () {
+        this._maindiv.innerHTML = `<span id="span1">span1</span>`;
+        let waiter = new WaitForElements({
+            target: this._maindiv,
+            selectors: [ "span" ],
+            allowMultipleMatches: true,
+            skipExisting: false,
+        });
+        let onTimeoutFn = jasmine.createSpy("onTimeoutFn");
+        let spy_sm = spyOn(waiter, "_startMatching").and.callThrough();
+
+        waiter.match(null, onTimeoutFn);
+
+        expect(spy_sm).toHaveBeenCalledWith(jasmine.any(Function), onTimeoutFn);
+    });
+
+    it("onlyOnce=true with allowMultipleMatches=true does not re-emit matches across mutations", function (done) {
+        this._maindiv.innerHTML = `
+        <span id=span1>span1</span>
+        `;
+        let waiter = new WaitForElements({
+                target: this._maindiv,
+                selectors: [ "span" ],
+                allowMultipleMatches: true,
+                onlyOnce: true,
+            });
+
+        let onMatchFn = jasmine.createSpy("onMatchFn");
+        let onTimeoutFn = jasmine.createSpy("onTimeoutFn");
+
+        waiter.match(onMatchFn, onTimeoutFn);
+
+        expect(onMatchFn).toHaveBeenCalledTimes(1);
+        expect(onMatchFn).toHaveBeenCalledWith([this._maindiv.querySelector("#span1")]);
+        expect(onTimeoutFn).not.toHaveBeenCalled();
+
+        window.setTimeout(() => {
+            let span1 = this._maindiv.querySelector("#span1");
+            span1.setAttribute("data-test", "1");
+
+            window.setTimeout(() => {
+                expect(onMatchFn).toHaveBeenCalledTimes(1);
+                expect(onTimeoutFn).not.toHaveBeenCalled();
+                waiter.stop();
+                done();
+            }, 0);
+        }, 0);
+    });
+
+    it("skipExisting=true ignores existing elements and matches later mutations (callbacks)", function (done) {
+        this._maindiv.innerHTML = `<span id="first">first</span>`;
+        let waiter = new WaitForElements({
+            target: this._maindiv,
+            selectors: [ "span" ],
+            skipExisting: true,
+            allowMultipleMatches: false,
+        });
+        let onMatchFn = jasmine.createSpy("onMatchFn", (els) => {
+            expect(els).toEqual([ this._maindiv.querySelector("#second") ]);
+            waiter.stop();
+            done();
+        }).and.callThrough();
+        let onTimeoutFn = jasmine.createSpy("onTimeoutFn");
+
+        waiter.match(onMatchFn, onTimeoutFn);
+
+        expect(onMatchFn).not.toHaveBeenCalled();
+
+        window.setTimeout(() => {
+            let second = document.createElement("span");
+            second.id = "second";
+            this._maindiv.append(second);
+        }, 0);
+    });
+
+    it("skipExisting=true ignores existing elements and matches later mutations (promise)", function (done) {
+        this._maindiv.innerHTML = `<span id="first">first</span>`;
+        let waiter = new WaitForElements({
+            target: this._maindiv,
+            selectors: [ "span" ],
+            skipExisting: true,
+            allowMultipleMatches: false,
+        });
+
+        let p = waiter.match();
+
+        window.setTimeout(() => {
+            let second = document.createElement("span");
+            second.id = "second";
+            this._maindiv.append(second);
+        }, 0);
+
+        p.then(els => {
+            expect(els).toEqual([ this._maindiv.querySelector("#second") ]);
+            done();
+        });
+    });
+
+    it("skipExisting=true with onlyOnce allows matching existing elements after mutation", function (done) {
+        this._maindiv.innerHTML = `<span id="first">first</span>`;
+        let waiter = new WaitForElements({
+            target: this._maindiv,
+            selectors: [ "span" ],
+            skipExisting: true,
+            onlyOnce: true,
+            allowMultipleMatches: false,
+        });
+        let onMatchFn = jasmine.createSpy("onMatchFn", (els) => {
+            expect(els).toEqual([ this._maindiv.querySelector("#first") ]);
+            waiter.stop();
+            done();
+        }).and.callThrough();
+
+        waiter.match(onMatchFn);
+
+        window.setTimeout(() => {
+            let first = this._maindiv.querySelector("#first");
+            first.setAttribute("data-test", "1");
+        }, 0);
+    });
+
+    it("skipExisting=true with onlyOnce allows matching existing elements after mutation (promise)", function (done) {
+        this._maindiv.innerHTML = `<span id="first">first</span>`;
+        let waiter = new WaitForElements({
+            target: this._maindiv,
+            selectors: [ "span" ],
+            skipExisting: true,
+            onlyOnce: true,
+            allowMultipleMatches: false,
+        });
+
+        let p = waiter.match();
+
+        window.setTimeout(() => {
+            let first = this._maindiv.querySelector("#first");
+            first.setAttribute("data-test", "1");
+        }, 0);
+
+        p.then(els => {
+            expect(els).toEqual([ this._maindiv.querySelector("#first") ]);
+            done();
+        });
+    });
+
+    it("skipExisting=true continues waiting when filter returns empty (callbacks)", function (done) {
+        this._maindiv.innerHTML = `<span id="first">first</span>`;
+        let waiter = new WaitForElements({
+            target: this._maindiv,
+            selectors: [ "span" ],
+            skipExisting: true,
+            allowMultipleMatches: false,
+            filter: els => els.filter(el => el.id !== "first"),
+        });
+        let onMatchFn = jasmine.createSpy("onMatchFn", (els) => {
+            expect(els).toEqual([ this._maindiv.querySelector("#second") ]);
+            waiter.stop();
+            done();
+        }).and.callThrough();
+
+        waiter.match(onMatchFn);
+
+        window.setTimeout(() => {
+            let first = this._maindiv.querySelector("#first");
+            first.setAttribute("data-test", "1");
+            window.setTimeout(() => {
+                expect(onMatchFn).not.toHaveBeenCalled();
+                let second = document.createElement("span");
+                second.id = "second";
+                this._maindiv.append(second);
+            }, 0);
+        }, 0);
+    });
+
+    it("skipExisting=true continues waiting when filter returns empty (promise)", function (done) {
+        this._maindiv.innerHTML = `<span id="first">first</span>`;
+        let waiter = new WaitForElements({
+            target: this._maindiv,
+            selectors: [ "span" ],
+            skipExisting: true,
+            allowMultipleMatches: false,
+            filter: els => els.filter(el => el.id !== "first"),
+        });
+
+        let p = waiter.match();
+
+        window.setTimeout(() => {
+            let first = this._maindiv.querySelector("#first");
+            first.setAttribute("data-test", "1");
+            window.setTimeout(() => {
+                let second = document.createElement("span");
+                second.id = "second";
+                this._maindiv.append(second);
+            }, 0);
+        }, 0);
+
+        p.then(els => {
+            expect(els).toEqual([ this._maindiv.querySelector("#second") ]);
+            done();
+        });
+    });
+
+    it("skipExisting=true with allowMultipleMatches emits per mutation and still times out", function (done) {
+        this._maindiv.innerHTML = `<span id="first">first</span>`;
+        let waiter = new WaitForElements({
+            target: this._maindiv,
+            selectors: [ "span" ],
+            skipExisting: true,
+            allowMultipleMatches: true,
+            timeout: 50,
+        });
+        let onMatchFn = jasmine.createSpy("onMatchFn");
+        let onTimeoutFn = jasmine.createSpy("onTimeoutFn", (err) => {
+            let ids = onMatchFn.calls.allArgs().map(args => args[0][0].id);
+            expect(ids).toEqual([ "second", "third" ]);
+            expect(err).toEqual(jasmine.any(Error));
+            expect(err.message).toBe("Timeout 50 reached waiting for selectors");
+            done();
+        }).and.callThrough();
+
+        waiter.match(onMatchFn, onTimeoutFn);
+
+        window.setTimeout(() => {
+            let second = document.createElement("span");
+            second.id = "second";
+            this._maindiv.append(second);
+            window.setTimeout(() => {
+                let third = document.createElement("span");
+                third.id = "third";
+                this._maindiv.append(third);
+            }, 0);
+        }, 0);
+    });
+
+
+    it("selectors can be a string and not an array", function (done) {
+        this._maindiv.innerHTML = ``;
+        let waiter = new WaitForElements({
+                target: this._maindiv,
+                selectors: "span",
+            });
+
+        let onMatchFn = jasmine.createSpy("onMatchFn", (els) => {
+            expect(els).toEqual([ this._maindiv.querySelector("#newspan") ]);
+            waiter.stop();
+            done();
+        }).and.callThrough();
+
+        waiter.match(onMatchFn);
+
+        window.setTimeout(() => {
+            let newspan = document.createElement("span");
+            newspan.id = "newspan";
+            this._maindiv.append(newspan);
+        }, 0);
+    });
+
+    it("continues waiting when filter returns empty (callbacks)", function (done) {
+        this._maindiv.innerHTML = "";
+        let waiter = new WaitForElements({
+            target: this._maindiv,
+            selectors: [ "span" ],
+            allowMultipleMatches: false,
+            skipExisting: true,
+            filter: els => els.filter(el => el.id !== "first"),
+        });
+        let onMatchFn = jasmine.createSpy("onMatchFn", (els) => {
+            expect(els).toEqual([ this._maindiv.querySelector("#second") ]);
+            waiter.stop();
+            done();
+        }).and.callThrough();
+        let onTimeoutFn = jasmine.createSpy("onTimeoutFn");
+
+        waiter.match(onMatchFn, onTimeoutFn);
+
+        window.setTimeout(() => {
+            let first = document.createElement("span");
+            first.id = "first";
+            this._maindiv.append(first);
+            window.setTimeout(() => {
+                let second = document.createElement("span");
+                second.id = "second";
+                this._maindiv.append(second);
+            }, 0);
+        }, 0);
+    });
+
+    it("continues waiting when filter returns empty (promise)", function (done) {
+        this._maindiv.innerHTML = "";
+        let waiter = new WaitForElements({
+            target: this._maindiv,
+            selectors: [ "span" ],
+            allowMultipleMatches: false,
+            skipExisting: true,
+            filter: els => els.filter(el => el.id !== "first"),
+        });
+
+        let p = waiter.match();
+
+        window.setTimeout(() => {
+            let first = document.createElement("span");
+            first.id = "first";
+            this._maindiv.append(first);
+            window.setTimeout(() => {
+                let second = document.createElement("span");
+                second.id = "second";
+                this._maindiv.append(second);
+            }, 0);
+        }, 0);
+
+        p.then(els => {
+            expect(els).toEqual([ this._maindiv.querySelector("#second") ]);
+            done();
+        });
+    });
+
+    it("requireVisible continues waiting when filter returns empty (callbacks)", function (done) {
+        this._maindiv.innerHTML = "";
+        let originalIntersectionObserver = window.IntersectionObserver;
+        let observers = [];
+        function FakeIntersectionObserver(cb) {
+            this.cb = cb;
+            this.observe = (el) => { this.el = el; };
+            this.unobserve = () => undefined;
+            this.disconnect = () => undefined;
+            observers.push(this);
+        }
+        window.IntersectionObserver = FakeIntersectionObserver;
+
+        let root = document.createElement("div");
+        root.style.height = "50px";
+        root.style.width = "50px";
+        root.style.overflow = "auto";
+        root.style.position = "relative";
+        let first = document.createElement("div");
+        first.className = "item";
+        first.style.height = "20px";
+        first.textContent = "first";
+        let spacer = document.createElement("div");
+        spacer.style.height = "200px";
+        let second = document.createElement("div");
+        second.className = "item";
+        second.style.height = "20px";
+        second.id = "second";
+        second.textContent = "second";
+        root.append(first, spacer, second);
+        this._maindiv.append(root);
+
+        let waiter = new WaitForElements({
+            target: root,
+            selectors: [ ".item" ],
+            requireVisible: true,
+            intersectionOptions: { root },
+            allowMultipleMatches: false,
+            filter: els => els.filter(el => el.id === "second"),
+        });
+        let onMatchFn = jasmine.createSpy("onMatchFn", (els) => {
+            expect(els).toEqual([ second ]);
+            waiter.stop();
+            window.IntersectionObserver = originalIntersectionObserver;
+            done();
+        }).and.callThrough();
+
+        waiter.match(onMatchFn);
+
+        let firstObserver = observers.find(obs => obs.el === first);
+        let secondObserver = observers.find(obs => obs.el === second);
+        firstObserver.cb([{ isIntersecting: true }]);
+        secondObserver.cb([{ isIntersecting: true }]);
+    });
+
+    it("requireVisible continues waiting when filter returns empty (promise)", function (done) {
+        this._maindiv.innerHTML = "";
+        let originalIntersectionObserver = window.IntersectionObserver;
+        let observers = [];
+        function FakeIntersectionObserver(cb) {
+            this.cb = cb;
+            this.observe = (el) => { this.el = el; };
+            this.unobserve = () => undefined;
+            this.disconnect = () => undefined;
+            observers.push(this);
+        }
+        window.IntersectionObserver = FakeIntersectionObserver;
+
+        let root = document.createElement("div");
+        root.style.height = "50px";
+        root.style.width = "50px";
+        root.style.overflow = "auto";
+        root.style.position = "relative";
+        let first = document.createElement("div");
+        first.className = "item";
+        first.style.height = "20px";
+        first.textContent = "first";
+        let spacer = document.createElement("div");
+        spacer.style.height = "200px";
+        let second = document.createElement("div");
+        second.className = "item";
+        second.style.height = "20px";
+        second.id = "second";
+        second.textContent = "second";
+        root.append(first, spacer, second);
+        this._maindiv.append(root);
+
+        let waiter = new WaitForElements({
+            target: root,
+            selectors: [ ".item" ],
+            requireVisible: true,
+            intersectionOptions: { root },
+            allowMultipleMatches: false,
+            filter: els => els.filter(el => el.id === "second"),
+        });
+
+        let p = waiter.match();
+
+        let firstObserver = observers.find(obs => obs.el === first);
+        let secondObserver = observers.find(obs => obs.el === second);
+        firstObserver.cb([{ isIntersecting: true }]);
+        secondObserver.cb([{ isIntersecting: true }]);
+
+        p.then(els => {
+            expect(els).toEqual([ second ]);
+            window.IntersectionObserver = originalIntersectionObserver;
+            done();
+        });
+    });
+
+
+    it("rejects when filter throws", async function () {
+        this._maindiv.innerHTML = `<span id=span1>span1</span>`;
+        let waiter = new WaitForElements({
+            target: this._maindiv,
+            selectors: [ "span" ],
+            allowMultipleMatches: false,
+            filter: () => { throw new Error("boom"); },
+        });
+
+        let p = waiter.match();
+
+        await expectAsync(p).toBeRejectedWithError("boom");
+    });
+
 
     describe("exceeding timeout", function () {
 
@@ -1292,6 +1912,41 @@ describe("match", function() {
 
     afterEach(function() {
         jasmine.clock().uninstall();
+    });
+
+    it("timeout=0 rejects immediately when no matches exist", async function () {
+        let waiter = new WaitForElements({
+                target: this._maindiv,
+                selectors: [ "noelement" ],
+                allowMultipleMatches: false,
+                skipExisting: false,
+                timeout: 0,
+            });
+
+        let p = waiter.match();
+        jasmine.clock().tick(0);
+
+        await expectAsync(p).toBeRejectedWithError("Timeout 0 reached waiting for selectors");
+    });
+
+    it("timeout=0 triggers callback immediately when no matches exist", function () {
+        let waiter = new WaitForElements({
+                target: this._maindiv,
+                selectors: [ "noelement" ],
+                allowMultipleMatches: false,
+                skipExisting: false,
+                timeout: 0,
+            });
+        let onMatchFn = jasmine.createSpy("onMatchFn");
+        let onTimeoutFn = jasmine.createSpy("onTimeoutFn");
+
+        waiter.match(onMatchFn, onTimeoutFn);
+        jasmine.clock().tick(0);
+
+        expect(onMatchFn).not.toHaveBeenCalled();
+        expect(onTimeoutFn).toHaveBeenCalledWith(jasmine.any(Error));
+        expect(onTimeoutFn.calls.argsFor(0)[0].message)
+            .toBe("Timeout 0 reached waiting for selectors");
     });
 
 
@@ -1323,7 +1978,7 @@ describe("match", function() {
 
         expect(spy_sm).toHaveBeenCalledWith(jasmine.any(Function), jasmine.any(Function));
 
-        await expectAsync(p).toBeRejected();
+        await expectAsync(p).toBeRejectedWithError("Timeout 10000 reached waiting for selectors");
 
         expect(waiter.observer).toBe(null);
         expect(waiter.timerId).toBe(null);
@@ -1357,11 +2012,13 @@ describe("match", function() {
         let spy_cm = spyOn(waiter, "_continueMatching").and.callThrough();
         let spy_st = spyOn(waiter, "_setupTimeout").and.callThrough();
         let onTimeoutFn;
-        onTimeoutFn = jasmine.createSpy("onTimeoutFn", () => {
+        onTimeoutFn = jasmine.createSpy("onTimeoutFn", (err) => {
             expect(onMatchFn).toHaveBeenCalledWith([this._maindiv.querySelector("#newspan")]);
             expect(onTimeoutFn).toHaveBeenCalledTimes(1);
             expect(waiter.observer).toBe(null);
             expect(waiter.timerId).toBe(null);
+            expect(err).toEqual(jasmine.any(Error));
+            expect(err.message).toBe("Timeout 10000 reached waiting for selectors");
 
             done();
         }).and.callThrough();
@@ -1422,6 +2079,622 @@ describe("stop", function() {
 
         expect(waiter.observer).toBe(null);
         expect(waiter.timerId).toBe(null);
+    });
+
+    it("prevents reuse after stop", async function () {
+        let waiter = new WaitForElements({
+                target: this._maindiv,
+                selectors: [ "nomatter" ],
+            });
+
+        waiter.stop();
+
+        await expectAsync(waiter.match())
+            .toBeRejectedWithError("WaitForElements instance is stopped and cannot be restarted");
+    });
+
+    it("prevents reuse after stop when callbacks are provided", function () {
+        let waiter = new WaitForElements({
+                target: this._maindiv,
+                selectors: [ "nomatter" ],
+            });
+
+        waiter.stop();
+
+        expect(() => waiter.match(() => undefined, () => undefined))
+            .toThrowError("WaitForElements instance is stopped and cannot be restarted");
+    });
+});
+
+describe("intersection observers", function() {
+    beforeEach(function() {
+        this._originalIntersectionObserver = window.IntersectionObserver;
+    });
+
+    afterEach(function() {
+        window.IntersectionObserver = this._originalIntersectionObserver;
+    });
+
+    it("multiple instances do not interfere with each other's observers", function() {
+        let obs1 = {
+            observe: jasmine.createSpy("observe1"),
+            unobserve: jasmine.createSpy("unobserve1"),
+            disconnect: jasmine.createSpy("disconnect1"),
+        };
+        let obs2 = {
+            observe: jasmine.createSpy("observe2"),
+            unobserve: jasmine.createSpy("unobserve2"),
+            disconnect: jasmine.createSpy("disconnect2"),
+        };
+        let ctorCalls = 0;
+        function FakeIntersectionObserver() {
+            ctorCalls += 1;
+            return ctorCalls === 1 ? obs1 : obs2;
+        }
+        window.IntersectionObserver = FakeIntersectionObserver;
+        let ctorSpy = spyOn(window, "IntersectionObserver").and.callThrough();
+
+        let el = document.createElement("div");
+        let waiter1 = new WaitForElements({ requireVisible: true });
+        let waiter2 = new WaitForElements({ requireVisible: true });
+
+        waiter1._waitForElementToIntersect(el, waiter1.options, () => undefined);
+        waiter2._waitForElementToIntersect(el, waiter2.options, () => undefined);
+
+        expect(waiter1.intersectionObservers.get(el)).toBe(obs1);
+        expect(waiter2.intersectionObservers.get(el)).toBe(obs2);
+
+        waiter1.stop();
+
+        expect(obs1.disconnect).toHaveBeenCalled();
+        expect(obs2.disconnect).not.toHaveBeenCalled();
+    });
+
+    it("stop disconnects all tracked intersection observers", function() {
+        let obs1 = {
+            observe: jasmine.createSpy("observe1"),
+            unobserve: jasmine.createSpy("unobserve1"),
+            disconnect: jasmine.createSpy("disconnect1"),
+        };
+        let obs2 = {
+            observe: jasmine.createSpy("observe2"),
+            unobserve: jasmine.createSpy("unobserve2"),
+            disconnect: jasmine.createSpy("disconnect2"),
+        };
+        let ctorCalls = 0;
+        function FakeIntersectionObserver() {
+            ctorCalls += 1;
+            return ctorCalls === 1 ? obs1 : obs2;
+        }
+        window.IntersectionObserver = FakeIntersectionObserver;
+        spyOn(window, "IntersectionObserver").and.callThrough();
+
+        let waiter = new WaitForElements({ requireVisible: true });
+        let el1 = document.createElement("div");
+        let el2 = document.createElement("div");
+
+        waiter._waitForElementToIntersect(el1, waiter.options, () => undefined);
+        waiter._waitForElementToIntersect(el2, waiter.options, () => undefined);
+
+        waiter.stop();
+
+        expect(obs1.disconnect).toHaveBeenCalled();
+        expect(obs2.disconnect).toHaveBeenCalled();
+        expect(waiter.intersectionObservers.size).toBe(0);
+    });
+
+    it("invokes onVisible callback when element intersects", function() {
+        let observers = [];
+        function FakeIntersectionObserver(cb) {
+            this.cb = cb;
+            this.observe = (el) => { this.el = el; };
+            this.unobserve = () => undefined;
+            this.disconnect = () => undefined;
+            observers.push(this);
+        }
+        window.IntersectionObserver = FakeIntersectionObserver;
+
+        let waiter = new WaitForElements({ requireVisible: true });
+        let el = document.createElement("div");
+        let onVisible = jasmine.createSpy("onVisible");
+
+        waiter._waitForElementToIntersect(el, waiter.options, onVisible);
+
+        let obs = observers.find(observer => observer.el === el);
+        obs.cb([{ isIntersecting: true }]);
+
+        expect(onVisible).toHaveBeenCalledWith(el);
+    });
+
+    it("resolves when intersecting after a non-intersecting entry without onVisible", function(done) {
+        let observers = [];
+        function FakeIntersectionObserver(cb) {
+            this.cb = cb;
+            this.observe = (el) => { this.el = el; };
+            this.unobserve = jasmine.createSpy("unobserve");
+            this.disconnect = jasmine.createSpy("disconnect");
+            observers.push(this);
+        }
+        window.IntersectionObserver = FakeIntersectionObserver;
+
+        let waiter = new WaitForElements({ requireVisible: true });
+        let el = document.createElement("div");
+
+        waiter._waitForElementToIntersect(el, waiter.options, null)
+            .then(result => {
+                expect(result).toBe(el);
+                let obs = observers.find(observer => observer.el === el);
+                expect(obs.unobserve).toHaveBeenCalledWith(el);
+                expect(obs.disconnect).toHaveBeenCalled();
+                done();
+            });
+
+        let obs = observers.find(observer => observer.el === el);
+        obs.cb([
+            { isIntersecting: false },
+            { isIntersecting: true },
+        ]);
+    });
+});
+
+describe("intersectionOptions", function() {
+    beforeEach(function() {
+        this._originalIntersectionObserver = window.IntersectionObserver;
+    });
+
+    afterEach(function() {
+        window.IntersectionObserver = this._originalIntersectionObserver;
+    });
+
+    it("passes intersectionOptions to IntersectionObserver", function() {
+        let capturedOptions = null;
+        let originalIntersectionObserver = window.IntersectionObserver;
+        spyOn(window, "IntersectionObserver").and.callFake(function(cb, options) {
+            capturedOptions = options;
+            return new originalIntersectionObserver(cb, options);
+        });
+
+        let waiter = new WaitForElements({
+            target: this._maindiv,
+            requireVisible: true,
+            intersectionOptions: {
+                root: this._maindiv,
+                rootMargin: "10px",
+                threshold: 0.5,
+            },
+        });
+        let el = document.createElement("div");
+        this._maindiv.append(el);
+
+        waiter._waitForElementToIntersect(el, waiter.options, () => undefined);
+
+        expect(capturedOptions).toEqual(waiter.options.intersectionOptions);
+
+        waiter.stop();
+    });
+
+    it("warns and skips when root is not an Element", function() {
+        let warnSpy = spyOn(console, "warn");
+        spyOn(window, "IntersectionObserver").and.callThrough();
+        let waiter = new WaitForElements({
+            requireVisible: true,
+            intersectionOptions: {
+                root: "not-an-element",
+            },
+            verbose: true,
+        });
+        let el = document.createElement("div");
+
+        waiter._waitForElementToIntersect(el, waiter.options, () => undefined);
+
+        expect(warnSpy).toHaveBeenCalled();
+        expect(warnSpy.calls.argsFor(0)[0])
+            .toBe("intersectionOptions.root is not an Element; skipping observe");
+        expect(window.IntersectionObserver).not.toHaveBeenCalled();
+    });
+
+    it("warns when root is detached but still observes if contained", function() {
+        let warnSpy = spyOn(console, "warn");
+        let originalIntersectionObserver = window.IntersectionObserver;
+        spyOn(window, "IntersectionObserver").and.callFake(function(cb, options) {
+            return new originalIntersectionObserver(cb, options);
+        });
+        let root = document.createElement("div");
+        let el = document.createElement("div");
+        root.append(el);
+        let waiter = new WaitForElements({
+            requireVisible: true,
+            intersectionOptions: {
+                root,
+            },
+            verbose: true,
+        });
+
+        waiter._waitForElementToIntersect(el, waiter.options, () => undefined);
+
+        expect(warnSpy).toHaveBeenCalled();
+        expect(warnSpy.calls.argsFor(0)[0])
+            .toBe("intersectionOptions.root is not connected; intersections may never fire");
+        expect(window.IntersectionObserver).toHaveBeenCalled();
+    });
+
+    it("warns and skips when element is not contained by root", function() {
+        let warnSpy = spyOn(console, "warn");
+        spyOn(window, "IntersectionObserver").and.callThrough();
+        let root = document.createElement("div");
+        let el = document.createElement("div");
+        this._maindiv.append(root);
+        let waiter = new WaitForElements({
+            requireVisible: true,
+            intersectionOptions: {
+                root,
+            },
+            verbose: true,
+        });
+
+        waiter._waitForElementToIntersect(el, waiter.options, () => undefined);
+
+        expect(warnSpy).toHaveBeenCalled();
+        expect(warnSpy.calls.argsFor(0)[0])
+            .toBe("Element is not contained within intersectionOptions.root; skipping observe");
+        expect(window.IntersectionObserver).not.toHaveBeenCalled();
+    });
+});
+
+describe("requireVisible", function() {
+    it("allowMultipleMatches=true emits each visible element without stopping", function() {
+        let originalIntersectionObserver = window.IntersectionObserver;
+        let observers = [];
+        function FakeIntersectionObserver(cb) {
+            this.cb = cb;
+            this.observe = (el) => { this.el = el; };
+            this.unobserve = () => undefined;
+            this.disconnect = () => undefined;
+            observers.push(this);
+        }
+        window.IntersectionObserver = FakeIntersectionObserver;
+
+        let waiter = new WaitForElements({
+            requireVisible: true,
+            allowMultipleMatches: true,
+        });
+        let onMatchFn = jasmine.createSpy("onMatchFn");
+
+        let el1 = document.createElement("div");
+        let el2 = document.createElement("div");
+
+        waiter._waitForElementToIntersect(el1, waiter.options,
+            (element) => waiter._queueVisibleMatch(element, onMatchFn));
+        waiter._waitForElementToIntersect(el2, waiter.options,
+            (element) => waiter._queueVisibleMatch(element, onMatchFn));
+
+        let obs1 = observers.find(obs => obs.el === el1);
+        let obs2 = observers.find(obs => obs.el === el2);
+        obs1.cb([{ isIntersecting: true }]);
+        obs2.cb([{ isIntersecting: true }]);
+
+        expect(onMatchFn).toHaveBeenCalledTimes(2);
+        expect(onMatchFn.calls.argsFor(0)[0]).toEqual([ el1 ]);
+        expect(onMatchFn.calls.argsFor(1)[0]).toEqual([ el2 ]);
+
+        waiter.stop();
+        window.IntersectionObserver = originalIntersectionObserver;
+    });
+
+    it("allowMultipleMatches=false waits for visibility before callback", function (done) {
+        let originalIntersectionObserver = window.IntersectionObserver;
+        let observers = [];
+        function FakeIntersectionObserver(cb) {
+            this.cb = cb;
+            this.observe = (el) => { this.el = el; };
+            this.unobserve = () => undefined;
+            this.disconnect = () => undefined;
+            observers.push(this);
+        }
+        window.IntersectionObserver = FakeIntersectionObserver;
+
+        this._maindiv.innerHTML = `<div class="visible">v</div>`;
+        let el = this._maindiv.querySelector(".visible");
+        let waiter = new WaitForElements({
+            target: this._maindiv,
+            selectors: [ ".visible" ],
+            requireVisible: true,
+            allowMultipleMatches: false,
+        });
+        let onMatchFn = jasmine.createSpy("onMatchFn", (els) => {
+            expect(els).toEqual([ el ]);
+            window.IntersectionObserver = originalIntersectionObserver;
+            done();
+        }).and.callThrough();
+
+        waiter.match(onMatchFn);
+
+        expect(onMatchFn).not.toHaveBeenCalled();
+
+        let obs = observers.find(observer => observer.el === el);
+        obs.cb([{ isIntersecting: true }]);
+    });
+
+    it("allowMultipleMatches=false waits for visibility before promise resolves", function (done) {
+        let originalIntersectionObserver = window.IntersectionObserver;
+        let observers = [];
+        function FakeIntersectionObserver(cb) {
+            this.cb = cb;
+            this.observe = (el) => { this.el = el; };
+            this.unobserve = () => undefined;
+            this.disconnect = () => undefined;
+            observers.push(this);
+        }
+        window.IntersectionObserver = FakeIntersectionObserver;
+
+        this._maindiv.innerHTML = `<div class="visible">v</div>`;
+        let el = this._maindiv.querySelector(".visible");
+        let waiter = new WaitForElements({
+            target: this._maindiv,
+            selectors: [ ".visible" ],
+            requireVisible: true,
+            allowMultipleMatches: false,
+        });
+
+        let p = waiter.match();
+
+        let obs = observers.find(observer => observer.el === el);
+        obs.cb([{ isIntersecting: true }]);
+
+        p.then(els => {
+            expect(els).toEqual([ el ]);
+            window.IntersectionObserver = originalIntersectionObserver;
+            done();
+        });
+    });
+
+    it("skips existing elements already in intersectionObservers during _startMatching", function () {
+        this._maindiv.innerHTML = `
+        <div class="visible" id="first">first</div>
+        <div class="visible" id="second">second</div>
+        `;
+        let first = this._maindiv.querySelector("#first");
+        let second = this._maindiv.querySelector("#second");
+        let waiter = new WaitForElements({
+            target: this._maindiv,
+            selectors: [ ".visible" ],
+            requireVisible: true,
+        });
+
+        waiter.intersectionObservers.set(first, { disconnect: () => undefined });
+        let spy_wfei = spyOn(waiter, "_waitForElementToIntersect").and.returnValue(Promise.resolve());
+
+        waiter._startMatching(() => undefined, () => undefined);
+
+        expect(spy_wfei).toHaveBeenCalledTimes(1);
+        expect(spy_wfei).toHaveBeenCalledWith(
+            second,
+            waiter.options,
+            jasmine.any(Function)
+        );
+    });
+
+    it("allowMultipleMatches=false batches same-tick intersections and stops once", function (done) {
+        let originalIntersectionObserver = window.IntersectionObserver;
+        let observers = [];
+        function FakeIntersectionObserver(cb) {
+            this.cb = cb;
+            this.observe = (el) => { this.el = el; };
+            this.unobserve = () => undefined;
+            this.disconnect = () => undefined;
+            observers.push(this);
+        }
+        window.IntersectionObserver = FakeIntersectionObserver;
+
+        this._maindiv.innerHTML = `
+        <div class="visible" id="first">first</div>
+        <div class="visible" id="second">second</div>
+        `;
+        let first = this._maindiv.querySelector("#first");
+        let second = this._maindiv.querySelector("#second");
+        let waiter = new WaitForElements({
+            target: this._maindiv,
+            selectors: [ ".visible" ],
+            requireVisible: true,
+            allowMultipleMatches: false,
+        });
+        let stopSpy = spyOn(waiter, "stop").and.callThrough();
+        let onMatchFn = jasmine.createSpy("onMatchFn", (els) => {
+            let ids = els.map(el => el.id);
+            expect(ids).toEqual([ "first", "second" ]);
+            expect(stopSpy).toHaveBeenCalledTimes(1);
+            window.IntersectionObserver = originalIntersectionObserver;
+            done();
+        }).and.callThrough();
+
+        waiter.match(onMatchFn);
+
+        let obs1 = observers.find(observer => observer.el === first);
+        let obs2 = observers.find(observer => observer.el === second);
+        obs1.cb([{ isIntersecting: true }]);
+        obs2.cb([{ isIntersecting: true }]);
+    });
+
+    it("promise resolves when element becomes visible", function (done) {
+        let originalIntersectionObserver = window.IntersectionObserver;
+        let observers = [];
+        function FakeIntersectionObserver(cb) {
+            this.cb = cb;
+            this.observe = (el) => { this.el = el; };
+            this.unobserve = () => undefined;
+            this.disconnect = () => undefined;
+            observers.push(this);
+        }
+        window.IntersectionObserver = FakeIntersectionObserver;
+
+        this._maindiv.innerHTML = `<div class="visible">v</div>`;
+        let el = this._maindiv.querySelector(".visible");
+        let waiter = new WaitForElements({
+            target: this._maindiv,
+            selectors: [ ".visible" ],
+            requireVisible: true,
+            allowMultipleMatches: false,
+        });
+
+        let p = waiter.match();
+
+        let obs = observers.find(observer => observer.el === el);
+        obs.cb([{ isIntersecting: true }]);
+
+        p.then(els => {
+            expect(els).toEqual([ el ]);
+            window.IntersectionObserver = originalIntersectionObserver;
+            done();
+        });
+    });
+
+    it("rejects when onVisible throws", function (done) {
+        let originalIntersectionObserver = window.IntersectionObserver;
+        let observers = [];
+        function FakeIntersectionObserver(cb) {
+            this.cb = cb;
+            this.observe = (el) => { this.el = el; };
+            this.unobserve = () => undefined;
+            this.disconnect = () => undefined;
+            observers.push(this);
+        }
+        window.IntersectionObserver = FakeIntersectionObserver;
+
+        let waiter = new WaitForElements({
+            requireVisible: true,
+            allowMultipleMatches: false,
+        });
+        let el = document.createElement("div");
+
+        waiter._waitForElementToIntersect(el, waiter.options, () => {
+            throw new Error("onVisible failed");
+        }).then(() => {
+            fail("expected rejection");
+            window.IntersectionObserver = originalIntersectionObserver;
+            done();
+        }).catch(err => {
+            expect(err).toEqual(jasmine.any(Error));
+            expect(err.message).toBe("onVisible failed");
+            window.IntersectionObserver = originalIntersectionObserver;
+            done();
+        });
+
+        let obs = observers.find(observer => observer.el === el);
+        obs.cb([{ isIntersecting: true }]);
+    });
+
+    it("disconnects an existing observer for the same element", function () {
+        let originalIntersectionObserver = window.IntersectionObserver;
+        let observers = [];
+        function FakeIntersectionObserver(cb) {
+            this.cb = cb;
+            this.observe = (el) => { this.el = el; };
+            this.unobserve = () => undefined;
+            this.disconnect = jasmine.createSpy("disconnect");
+            observers.push(this);
+        }
+        window.IntersectionObserver = FakeIntersectionObserver;
+
+        let waiter = new WaitForElements({
+            requireVisible: true,
+            allowMultipleMatches: false,
+        });
+        let el = document.createElement("div");
+
+        waiter._waitForElementToIntersect(el, waiter.options, () => undefined);
+        let firstObs = observers.find(observer => observer.el === el);
+
+        waiter._waitForElementToIntersect(el, waiter.options, () => undefined);
+        let secondObs = observers.filter(observer => observer.el === el)[1];
+
+        expect(firstObs.disconnect).toHaveBeenCalled();
+        expect(secondObs).toBeDefined();
+
+        window.IntersectionObserver = originalIntersectionObserver;
+    });
+
+    it("skipExisting=true ignores existing visible elements and matches later mutations (callbacks)", function (done) {
+        let originalIntersectionObserver = window.IntersectionObserver;
+        let observers = [];
+        function FakeIntersectionObserver(cb) {
+            this.cb = cb;
+            this.observe = (el) => { this.el = el; };
+            this.unobserve = () => undefined;
+            this.disconnect = () => undefined;
+            observers.push(this);
+        }
+        window.IntersectionObserver = FakeIntersectionObserver;
+
+        this._maindiv.innerHTML = `<div class="item" id="first">first</div>`;
+        let waiter = new WaitForElements({
+            target: this._maindiv,
+            selectors: [ ".item" ],
+            requireVisible: true,
+            skipExisting: true,
+            allowMultipleMatches: false,
+        });
+        let onMatchFn = jasmine.createSpy("onMatchFn", (els) => {
+            expect(els).toEqual([ this._maindiv.querySelector("#second") ]);
+            waiter.stop();
+            window.IntersectionObserver = originalIntersectionObserver;
+            done();
+        }).and.callThrough();
+
+        waiter.match(onMatchFn);
+
+        expect(onMatchFn).not.toHaveBeenCalled();
+
+        let second = document.createElement("div");
+        second.className = "item";
+        second.id = "second";
+        this._maindiv.append(second);
+
+        window.setTimeout(() => {
+            let obs = observers.find(observer => observer.el === second);
+            expect(obs).toBeDefined();
+            obs.cb([{ isIntersecting: true }]);
+        }, 0);
+    });
+
+    it("skipExisting=true ignores existing visible elements and matches later mutations (promise)", function (done) {
+        let originalIntersectionObserver = window.IntersectionObserver;
+        let observers = [];
+        function FakeIntersectionObserver(cb) {
+            this.cb = cb;
+            this.observe = (el) => { this.el = el; };
+            this.unobserve = () => undefined;
+            this.disconnect = () => undefined;
+            observers.push(this);
+        }
+        window.IntersectionObserver = FakeIntersectionObserver;
+
+        this._maindiv.innerHTML = `<div class="item" id="first">first</div>`;
+        let waiter = new WaitForElements({
+            target: this._maindiv,
+            selectors: [ ".item" ],
+            requireVisible: true,
+            skipExisting: true,
+            allowMultipleMatches: false,
+        });
+
+        let p = waiter.match();
+
+        let second = document.createElement("div");
+        second.className = "item";
+        second.id = "second";
+        this._maindiv.append(second);
+
+        window.setTimeout(() => {
+            let obs = observers.find(observer => observer.el === second);
+            expect(obs).toBeDefined();
+            obs.cb([{ isIntersecting: true }]);
+        }, 0);
+
+        p.then(els => {
+            expect(els).toEqual([ this._maindiv.querySelector("#second") ]);
+            window.IntersectionObserver = originalIntersectionObserver;
+            done();
+        });
     });
 });
 
