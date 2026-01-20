@@ -370,7 +370,7 @@ class WaitForElements
             /* istanbul ignore next */
             if (this.options.verbose)
             {
-                console.log("Disconnecting observer for selectors:", this.options.selectors);
+                console.log("Disconnecting mutation observer for selectors:", this.options.selectors);
             }
 
             this.observer.disconnect();
@@ -379,6 +379,12 @@ class WaitForElements
 
         if (this.intersectionObservers.size > 0)
         {
+            /* istanbul ignore next */
+            if (this.options.verbose)
+            {
+                console.log("Disconnecting intersection observers for selectors:", this.options.selectors);
+            }
+
             for (let obs of this.intersectionObservers.values())
                 obs.disconnect();
             this.intersectionObservers.clear();
