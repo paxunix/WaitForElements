@@ -34,10 +34,12 @@ npm run coverage
 ```
 
 
-# Releasing
+# RELEASING
+
+scripts/release.sh <semantic-version>
 
 git tag --annotate <semantic-version>
 
 git push --follow-tags
 
-gh release create <semantic-version> --notes <Release notes>
+gh release create <semantic-version>
