@@ -775,6 +775,103 @@ describe("removedOnly", function() {
             }, 0);
         }, 0);
     });
+
+    it("does not emit existing matches when removedOnly is true", function(done) {
+        this._maindiv.innerHTML = `<span class="gone">gone</span>`;
+        let waiter = new WaitForElements({
+            target: this._maindiv,
+            selectors: [ ".gone" ],
+            removedOnly: true,
+            skipExisting: false,
+            allowMultipleMatches: false,
+            timeout: 50,
+        });
+        let onMatchFn = jasmine.createSpy("onMatchFn");
+        let onTimeoutFn = jasmine.createSpy("onTimeoutFn", () => {
+            expect(onMatchFn).not.toHaveBeenCalled();
+            done();
+        }).and.callThrough();
+
+        waiter.match(onMatchFn, onTimeoutFn);
+    });
+
+    it("does not resolve existing matches when removedOnly is true (promise)", function(done) {
+        this._maindiv.innerHTML = `<span class="gone">gone</span>`;
+        let waiter = new WaitForElements({
+            target: this._maindiv,
+            selectors: [ ".gone" ],
+            removedOnly: true,
+            skipExisting: false,
+            allowMultipleMatches: false,
+            timeout: 50,
+        });
+
+        waiter.match().then(() => {
+            fail("expected timeout, not resolve");
+        }).catch(err => {
+            expect(err).toEqual(jasmine.any(Error));
+            expect(err.message).toBe("Timeout 50 reached waiting for selectors");
+            done();
+        });
+    });
+
+    it("resolves when element is added then removed (callbacks)", function(done) {
+        this._maindiv.innerHTML = "";
+        let waiter = new WaitForElements({
+            target: this._maindiv,
+            selectors: [ ".gone" ],
+            removedOnly: true,
+            skipExisting: false,
+            allowMultipleMatches: false,
+            timeout: 200,
+        });
+        let onMatchFn = jasmine.createSpy("onMatchFn", (els) => {
+            expect(els.length).toBe(1);
+            expect(els[0].classList.contains("gone")).toBeTrue();
+            done();
+        }).and.callThrough();
+        let onTimeoutFn = jasmine.createSpy("onTimeoutFn");
+
+        waiter.match(onMatchFn, onTimeoutFn);
+
+        window.setTimeout(() => {
+            let el = document.createElement("span");
+            el.className = "gone";
+            this._maindiv.append(el);
+            window.setTimeout(() => {
+                el.remove();
+            }, 0);
+        }, 0);
+    });
+
+    it("resolves when element is added then removed (promise)", function(done) {
+        this._maindiv.innerHTML = "";
+        let waiter = new WaitForElements({
+            target: this._maindiv,
+            selectors: [ ".gone" ],
+            removedOnly: true,
+            skipExisting: false,
+            allowMultipleMatches: false,
+            timeout: 200,
+        });
+
+        waiter.match().then(els => {
+            expect(els.length).toBe(1);
+            expect(els[0].classList.contains("gone")).toBeTrue();
+            done();
+        }).catch(err => {
+            fail(`expected resolve, got ${err.message}`);
+        });
+
+        window.setTimeout(() => {
+            let el = document.createElement("span");
+            el.className = "gone";
+            this._maindiv.append(el);
+            window.setTimeout(() => {
+                el.remove();
+            }, 0);
+        }, 0);
+    });
 });
 
 

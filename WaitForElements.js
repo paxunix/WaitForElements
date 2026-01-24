@@ -2,7 +2,7 @@
 
 class WaitForElements
 {
-    static _version = "3.1.0";
+    static _version = "3.1.1";
 
     constructor(options)
     {
@@ -465,7 +465,8 @@ class WaitForElements
             console.log("Waiting for selectors:", this.options.selectors);
         }
 
-        if (!this.options.skipExisting || this.options.requireVisible)
+        if (!this.options.removedOnly &&
+            (!this.options.skipExisting || this.options.requireVisible))
         {
             let els = this._getMatchingElements();
             if (els.length > 0)
