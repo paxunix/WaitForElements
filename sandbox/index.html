@@ -273,7 +273,8 @@
   <div class="layout">
     <section class="panel">
       <h2>Configure Instance</h2>
-      <div class="section grid">
+      <details class="section grid" open>
+        <summary>Base Options</summary>
         <div>
           <label for="selectors">Selectors (comma-separated)</label>
           <input id="selectors" type="text" value=".box, .note" />
@@ -303,10 +304,10 @@
           <label class="pill"><input id="requireVisible" type="checkbox" /> requireVisible</label>
           <label class="pill"><input id="removedOnly" type="checkbox" /> removedOnly</label>
         </div>
-      </div>
+      </details>
 
-      <div class="section grid">
-        <h3>Observer Options</h3>
+      <details class="section grid" open>
+        <summary>Observer Options</summary>
         <div class="row">
           <label class="pill"><input id="obs-attributes" type="checkbox" checked /> attributes</label>
           <label class="pill"><input id="obs-attributeOldValue" type="checkbox" checked /> attributeOldValue</label>
@@ -315,10 +316,10 @@
           <label class="pill"><input id="obs-childList" type="checkbox" checked /> childList</label>
           <label class="pill"><input id="obs-subtree" type="checkbox" checked /> subtree</label>
         </div>
-      </div>
+      </details>
 
-      <div class="section grid">
-        <h3>Intersection Options</h3>
+      <details class="section grid">
+        <summary>Intersection Options</summary>
         <div class="grid two">
           <div>
             <label for="rootSelect">root</label>
@@ -337,16 +338,16 @@
           <label for="threshold">threshold (number or comma list)</label>
           <input id="threshold" type="text" value="0.01" />
         </div>
-      </div>
+      </details>
 
-      <div class="section grid">
-        <h3>Filter</h3>
+      <details class="section grid">
+        <summary>Filter</summary>
         <div class="row">
           <label class="pill"><input id="enableFilter" type="checkbox" /> enable filter</label>
           <span class="muted">Use JS body: <code>return els.filter(...)</code></span>
         </div>
         <textarea id="filterBody">return els;</textarea>
-      </div>
+      </details>
 
       <div class="row">
         <button class="btn" id="createInstance">Create Instance</button>
