@@ -1,0 +1,575 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>WaitForElements Sandbox</title>
+  <style>
+    @import url("https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600&family=JetBrains+Mono:wght@400;600&display=swap");
+
+    :root {
+      color-scheme: light;
+      --bg: #f7f4ee;
+      --bg-alt: #efe8dc;
+      --ink: #1f1b16;
+      --muted: #5c534a;
+      --accent: #d85c27;
+      --accent-2: #2b6d5f;
+      --card: #fffaf1;
+      --border: #d9d0c3;
+      --shadow: 0 8px 24px rgba(31, 27, 22, 0.08);
+      --radius: 14px;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: "Space Grotesk", system-ui, sans-serif;
+      color: var(--ink);
+      background: radial-gradient(1200px 600px at 20% -10%, #fff4de 0%, transparent 60%),
+                  radial-gradient(900px 500px at 120% 0%, #f0f7ff 0%, transparent 50%),
+                  var(--bg);
+    }
+
+    header {
+      padding: 20px 24px 8px;
+    }
+
+    header h1 {
+      margin: 0 0 6px;
+      font-size: 24px;
+      letter-spacing: 0.4px;
+    }
+
+    header p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: minmax(320px, 0.95fr) minmax(320px, 1.05fr);
+      gap: 18px;
+      padding: 18px 24px 28px;
+    }
+
+    .panel {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      min-height: 420px;
+    }
+
+    .panel h2 {
+      margin: 0;
+      font-size: 18px;
+    }
+
+    .section {
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 12px;
+      background: #fff;
+    }
+
+    .grid {
+      display: grid;
+      gap: 10px;
+    }
+
+    .grid.two {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    label {
+      font-size: 12px;
+      color: var(--muted);
+      display: block;
+      margin-bottom: 4px;
+    }
+
+    input[type="text"],
+    input[type="number"],
+    textarea,
+    select {
+      width: 100%;
+      padding: 8px 10px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      font-family: "JetBrains Mono", monospace;
+      font-size: 12px;
+      background: #fffdf7;
+      color: var(--ink);
+    }
+
+    textarea {
+      min-height: 80px;
+      resize: vertical;
+    }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 10px;
+      border-radius: 999px;
+      background: #fff;
+      border: 1px solid var(--border);
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .btn {
+      border: none;
+      border-radius: 10px;
+      padding: 10px 14px;
+      cursor: pointer;
+      font-weight: 600;
+      font-size: 13px;
+      background: var(--accent);
+      color: white;
+      box-shadow: 0 8px 16px rgba(216, 92, 39, 0.2);
+    }
+
+    .btn.secondary {
+      background: var(--accent-2);
+    }
+
+    .btn.ghost {
+      background: transparent;
+      color: var(--ink);
+      border: 1px solid var(--border);
+      box-shadow: none;
+    }
+
+    .row {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .muted {
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .instances {
+      display: grid;
+      gap: 10px;
+      max-height: 420px;
+      overflow: auto;
+      padding-right: 4px;
+    }
+
+    details {
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      background: #fff;
+      padding: 8px 12px;
+    }
+
+    summary {
+      cursor: pointer;
+      font-weight: 600;
+      font-size: 13px;
+    }
+
+    pre {
+      margin: 8px 0 0;
+      background: #f9f4ea;
+      border-radius: 10px;
+      padding: 8px;
+      font-family: "JetBrains Mono", monospace;
+      font-size: 11px;
+      overflow: auto;
+    }
+
+    .sandbox-controls {
+      display: grid;
+      gap: 8px;
+    }
+
+    .sandbox-root {
+      min-height: 360px;
+      max-height: 60vh;
+      border: 1px dashed #c7b8a5;
+      border-radius: 12px;
+      padding: 12px;
+      background: #fffdf9;
+      overflow: auto;
+      font-family: "JetBrains Mono", monospace;
+    }
+
+    .sandbox-root .box {
+      padding: 8px;
+      margin: 6px 0;
+      border-radius: 8px;
+      background: #ffe9d7;
+      border: 1px solid #f1c3a5;
+    }
+
+    .sandbox-root .note {
+      padding: 6px 8px;
+      margin: 6px 0;
+      border-radius: 8px;
+      background: #e6f6f0;
+      border: 1px solid #b6e0d1;
+    }
+
+    .error {
+      color: #b3261e;
+      font-weight: 600;
+      font-size: 12px;
+    }
+
+    @media (max-width: 980px) {
+      .layout {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>WaitForElements Sandbox</h1>
+    <p>Spin up instances with different options and watch how they behave against the sandbox DOM.</p>
+  </header>
+
+  <div class="layout">
+    <section class="panel">
+      <h2>Configure Instance</h2>
+      <div class="section grid">
+        <div>
+          <label for="selectors">Selectors (comma-separated)</label>
+          <input id="selectors" type="text" value=".box, .note" />
+        </div>
+        <div>
+          <label for="target">Target (CSS selector)</label>
+          <input id="target" type="text" value="#sandbox-root" />
+        </div>
+        <div class="grid two">
+          <div>
+            <label for="timeout">Timeout (ms, -1 = forever)</label>
+            <input id="timeout" type="number" value="-1" />
+          </div>
+          <div>
+            <label for="verbose">Verbose</label>
+            <select id="verbose">
+              <option value="0">off</option>
+              <option value="1">true</option>
+              <option value="2">debug (verbose=2)</option>
+            </select>
+          </div>
+        </div>
+        <div class="row">
+          <label class="pill"><input id="allowMultipleMatches" type="checkbox" /> allowMultipleMatches</label>
+          <label class="pill"><input id="onlyOnce" type="checkbox" /> onlyOnce</label>
+          <label class="pill"><input id="skipExisting" type="checkbox" /> skipExisting</label>
+          <label class="pill"><input id="requireVisible" type="checkbox" /> requireVisible</label>
+          <label class="pill"><input id="removedOnly" type="checkbox" /> removedOnly</label>
+        </div>
+      </div>
+
+      <div class="section grid">
+        <h3>Observer Options</h3>
+        <div class="row">
+          <label class="pill"><input id="obs-attributes" type="checkbox" checked /> attributes</label>
+          <label class="pill"><input id="obs-attributeOldValue" type="checkbox" checked /> attributeOldValue</label>
+          <label class="pill"><input id="obs-characterData" type="checkbox" checked /> characterData</label>
+          <label class="pill"><input id="obs-characterDataOldValue" type="checkbox" checked /> characterDataOldValue</label>
+          <label class="pill"><input id="obs-childList" type="checkbox" checked /> childList</label>
+          <label class="pill"><input id="obs-subtree" type="checkbox" checked /> subtree</label>
+        </div>
+      </div>
+
+      <div class="section grid">
+        <h3>Intersection Options</h3>
+        <div class="grid two">
+          <div>
+            <label for="rootSelect">root</label>
+            <select id="rootSelect">
+              <option value="sandbox">#sandbox-root</option>
+              <option value="body">document.body</option>
+              <option value="null">null</option>
+            </select>
+          </div>
+          <div>
+            <label for="rootMargin">rootMargin</label>
+            <input id="rootMargin" type="text" value="0px" />
+          </div>
+        </div>
+        <div>
+          <label for="threshold">threshold (number or comma list)</label>
+          <input id="threshold" type="text" value="0.01" />
+        </div>
+      </div>
+
+      <div class="section grid">
+        <h3>Filter</h3>
+        <div class="row">
+          <label class="pill"><input id="enableFilter" type="checkbox" /> enable filter</label>
+          <span class="muted">Use JS body: <code>return els.filter(...)</code></span>
+        </div>
+        <textarea id="filterBody">return els;</textarea>
+      </div>
+
+      <div class="row">
+        <button class="btn" id="createInstance">Create Instance</button>
+        <span id="formError" class="error"></span>
+      </div>
+
+      <div class="section">
+        <h3>Instances</h3>
+        <div id="instances" class="instances"></div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>Sandbox DOM</h2>
+      <div class="section sandbox-controls">
+        <div class="row">
+          <button class="btn secondary" id="addBox">Add .box</button>
+          <button class="btn secondary" id="addNote">Add .note</button>
+          <button class="btn ghost" id="removeLast">Remove last</button>
+          <button class="btn ghost" id="clearSandbox">Clear</button>
+        </div>
+        <div>
+          <label for="customHtml">Append custom HTML</label>
+          <textarea id="customHtml"><div class="box" data-ready="false">custom box</div></textarea>
+          <button class="btn ghost" id="appendHtml">Append HTML</button>
+        </div>
+        <div class="row">
+          <button class="btn ghost" id="toggleReady">Toggle data-ready on .box</button>
+        </div>
+      </div>
+      <div id="sandbox-root" class="sandbox-root"></div>
+    </section>
+  </div>
+
+  <script src="../WaitForElements.js"></script>
+  <script>
+    const sandboxRoot = document.getElementById("sandbox-root");
+    const instancesEl = document.getElementById("instances");
+    const formError = document.getElementById("formError");
+    let instanceId = 1;
+
+    const $ = (id) => document.getElementById(id);
+
+    const readSelectors = () => {
+      const raw = $("selectors").value.trim();
+      if (!raw) return [];
+      return raw.split(",").map(s => s.trim()).filter(Boolean);
+    };
+
+    const readTarget = () => {
+      const selector = $("target").value.trim();
+      if (!selector) return null;
+      return document.querySelector(selector);
+    };
+
+    const readObserverOptions = () => ({
+      attributes: $("obs-attributes").checked,
+      attributeOldValue: $("obs-attributeOldValue").checked,
+      characterData: $("obs-characterData").checked,
+      characterDataOldValue: $("obs-characterDataOldValue").checked,
+      childList: $("obs-childList").checked,
+      subtree: $("obs-subtree").checked,
+    });
+
+    const readIntersectionOptions = () => {
+      const rootChoice = $("rootSelect").value;
+      let root = null;
+      if (rootChoice === "sandbox") root = sandboxRoot;
+      if (rootChoice === "body") root = document.body;
+
+      let threshold = $("threshold").value.trim();
+      if (threshold.includes(",")) {
+        threshold = threshold.split(",").map(v => Number(v.trim())).filter(v => !Number.isNaN(v));
+      } else {
+        threshold = threshold === "" ? 0 : Number(threshold);
+      }
+
+      return {
+        root,
+        rootMargin: $("rootMargin").value.trim(),
+        threshold,
+      };
+    };
+
+    const readFilter = () => {
+      if (!$("enableFilter").checked) return null;
+      const body = $("filterBody").value;
+      return new Function("els", body);
+    };
+
+    const renderInstance = (record) => {
+      const detail = document.createElement("details");
+      detail.open = false;
+      detail.dataset.instanceId = record.id;
+
+      const summary = document.createElement("summary");
+      summary.textContent = `#${record.id} — ${record.status}`;
+      detail.append(summary);
+
+      const controls = document.createElement("div");
+      controls.className = "row";
+      const stopBtn = document.createElement("button");
+      stopBtn.className = "btn ghost";
+      stopBtn.textContent = "Stop";
+      stopBtn.onclick = () => {
+        record.instance.stop();
+        record.status = "stopped";
+        summary.textContent = `#${record.id} — ${record.status}`;
+      };
+
+      const removeBtn = document.createElement("button");
+      removeBtn.className = "btn ghost";
+      removeBtn.textContent = "Remove";
+      removeBtn.onclick = () => detail.remove();
+
+      controls.append(stopBtn, removeBtn);
+      detail.append(controls);
+
+      const stats = document.createElement("pre");
+      stats.textContent = JSON.stringify({
+        options: record.options,
+        matches: record.matches,
+        lastMatch: record.lastMatch,
+        error: record.error || null,
+      }, null, 2);
+      detail.append(stats);
+
+      record.statsEl = stats;
+      return detail;
+    };
+
+    const updateRecord = (record) => {
+      if (!record.statsEl) return;
+      record.statsEl.textContent = JSON.stringify({
+        options: record.options,
+        matches: record.matches,
+        lastMatch: record.lastMatch,
+        error: record.error || null,
+      }, null, 2);
+    };
+
+    $("createInstance").addEventListener("click", () => {
+      formError.textContent = "";
+      let options;
+      try {
+        const target = readTarget();
+        if (!target) {
+          throw new Error("Target not found.");
+        }
+
+        const verboseValue = Number($("verbose").value);
+        const filterFn = readFilter();
+
+        options = {
+          selectors: readSelectors(),
+          target,
+          timeout: Number($("timeout").value || -1),
+          allowMultipleMatches: $("allowMultipleMatches").checked,
+          onlyOnce: $("onlyOnce").checked,
+          skipExisting: $("skipExisting").checked,
+          requireVisible: $("requireVisible").checked,
+          removedOnly: $("removedOnly").checked,
+          observerOptions: readObserverOptions(),
+          intersectionOptions: readIntersectionOptions(),
+          filter: filterFn,
+          verbose: verboseValue === 2 ? 2 : verboseValue === 1,
+        };
+
+        const instance = new WaitForElements(options);
+        const record = {
+          id: instanceId++,
+          instance,
+          options,
+          status: "running",
+          matches: 0,
+          lastMatch: [],
+          error: null,
+        };
+
+        const onMatch = (els) => {
+          record.matches += 1;
+          record.lastMatch = els.map(el => el.outerHTML || el.textContent);
+          if (!options.allowMultipleMatches) {
+            record.status = "resolved";
+          }
+          updateRecord(record);
+        };
+
+        const onTimeout = (err) => {
+          record.status = "timeout";
+          record.error = err.message;
+          updateRecord(record);
+        };
+
+        try {
+          instance.match(onMatch, onTimeout);
+        } catch (err) {
+          record.status = "error";
+          record.error = err.message;
+          updateRecord(record);
+        }
+
+        const view = renderInstance(record);
+        instancesEl.prepend(view);
+        updateRecord(record);
+      } catch (err) {
+        formError.textContent = err.message;
+      }
+    });
+
+    $("addBox").addEventListener("click", () => {
+      const div = document.createElement("div");
+      div.className = "box";
+      div.dataset.ready = "false";
+      div.textContent = `box-${Date.now()}`;
+      sandboxRoot.append(div);
+    });
+
+    $("addNote").addEventListener("click", () => {
+      const span = document.createElement("span");
+      span.className = "note";
+      span.textContent = `note-${Date.now()}`;
+      sandboxRoot.append(span);
+    });
+
+    $("removeLast").addEventListener("click", () => {
+      const last = sandboxRoot.lastElementChild;
+      if (last) last.remove();
+    });
+
+    $("clearSandbox").addEventListener("click", () => {
+      sandboxRoot.innerHTML = "";
+    });
+
+    $("appendHtml").addEventListener("click", () => {
+      const html = $("customHtml").value;
+      const wrapper = document.createElement("div");
+      wrapper.innerHTML = html;
+      while (wrapper.firstChild) {
+        sandboxRoot.append(wrapper.firstChild);
+      }
+    });
+
+    $("toggleReady").addEventListener("click", () => {
+      const target = sandboxRoot.querySelector(".box");
+      if (!target) return;
+      target.dataset.ready = target.dataset.ready === "true" ? "false" : "true";
+    });
+  </script>
+</body>
+</html>
