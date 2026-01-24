@@ -216,6 +216,7 @@
       border-radius: 8px;
       background: #ffe9d7;
       border: 1px solid #f1c3a5;
+      position: relative;
     }
 
     .sandbox-root .note {
@@ -224,6 +225,30 @@
       border-radius: 8px;
       background: #e6f6f0;
       border: 1px solid #b6e0d1;
+      position: relative;
+    }
+
+    .sandbox-root .sandbox-item {
+      position: relative;
+      padding-left: 26px;
+    }
+
+    .sandbox-root .remove-chip {
+      position: absolute;
+      top: 4px;
+      left: 4px;
+      width: 18px;
+      height: 18px;
+      border-radius: 999px;
+      border: 1px solid #d4c3b3;
+      background: #fff;
+      color: #4b3f35;
+      font-size: 12px;
+      line-height: 16px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
     }
 
     .error {
@@ -364,6 +389,21 @@
     let instanceId = 1;
 
     const $ = (id) => document.getElementById(id);
+
+    const decorateSandboxElement = (el) => {
+      if (!(el instanceof Element)) return;
+      if (el.querySelector(":scope > .remove-chip")) return;
+      el.classList.add("sandbox-item");
+      const remove = document.createElement("button");
+      remove.type = "button";
+      remove.className = "remove-chip";
+      remove.textContent = "×";
+      remove.addEventListener("click", (event) => {
+        event.stopPropagation();
+        el.remove();
+      });
+      el.prepend(remove);
+    };
 
     const readSelectors = () => {
       const raw = $("selectors").value.trim();
@@ -537,6 +577,7 @@
       div.className = "box";
       div.dataset.ready = "false";
       div.textContent = `box-${Date.now()}`;
+      decorateSandboxElement(div);
       sandboxRoot.append(div);
     });
 
@@ -544,6 +585,7 @@
       const span = document.createElement("span");
       span.className = "note";
       span.textContent = `note-${Date.now()}`;
+      decorateSandboxElement(span);
       sandboxRoot.append(span);
     });
 
@@ -561,7 +603,9 @@
       const wrapper = document.createElement("div");
       wrapper.innerHTML = html;
       while (wrapper.firstChild) {
-        sandboxRoot.append(wrapper.firstChild);
+        const child = wrapper.firstChild;
+        decorateSandboxElement(child);
+        sandboxRoot.append(child);
       }
     });
 
