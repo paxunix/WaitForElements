@@ -115,4 +115,5 @@ Silently stop waiting for matches.  No callbacks are invoked.  Any outstanding p
 
 ## Sandbox
 
-There is a sandbox/index.html static file that can be used for in-browser experimentation with WaitForElements.
+There is a sandbox/index.html static file that can be used for in-browser experimentation with WaitForElements.  You
+can load the current version directly:  https://paxunix.github.io/WaitForElements/index.html

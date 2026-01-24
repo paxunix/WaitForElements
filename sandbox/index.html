@@ -36,6 +36,7 @@
 
     header {
       padding: 20px 24px 8px;
+      position: relative;
     }
 
     header h1 {
@@ -48,6 +49,19 @@
       margin: 0;
       color: var(--muted);
       font-size: 14px;
+    }
+
+    .repo-link {
+      position: absolute;
+      top: 20px;
+      right: 24px;
+      font-size: 12px;
+      text-decoration: none;
+      color: var(--ink);
+      border: 1px solid var(--border);
+      padding: 6px 10px;
+      border-radius: 999px;
+      background: #fff;
     }
 
     .layout {
@@ -268,6 +282,7 @@
   <header>
     <h1>WaitForElements Sandbox</h1>
     <p>Spin up instances with different options and watch how they behave against the sandbox DOM.</p>
+    <a class="repo-link" href="https://github.com/paxunix/WaitForElements" target="_blank" rel="noopener">WaitForElements on GitHub ↗</a>
   </header>
 
   <div class="layout">
