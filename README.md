@@ -24,8 +24,6 @@ Module script (ESM import):
 </script>
 ```
 
-Does NOT support waiting for elements to be removed from the DOM.
-
 
 ## API
 
@@ -79,6 +77,10 @@ Default=`false`.  If true, matched DOM elements must also intersect at least one
 #### options.intersectionOptions
 
 Default = undefined.  If given, must conform to the `IntersectionObserver.observe()` API's options.
+
+#### options.removedOnly
+
+Default = false.  If given, only elements that are removed will be returned.
 
 #### options.verbose
 

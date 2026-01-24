@@ -2,7 +2,7 @@
 
 class WaitForElements
 {
-    static _version = "3.0.0";
+    static _version = "3.1.0";
 
     constructor(options)
     {
@@ -76,6 +76,7 @@ class WaitForElements
             allowMultipleMatches: false,
             onlyOnce: false,
             skipExisting: false,
+            removedOnly: false,
             timeout: -1,
             observerOptions: {
                 attributeOldValue: true,
@@ -89,7 +90,12 @@ class WaitForElements
             verbose: false,
         };
 
-        return Object.assign({}, builtinDefaults, defaults ?? {}, options);
+        let opts = Object.assign({}, builtinDefaults, defaults ?? {}, options);
+
+        if (opts.removedOnly && opts.requireVisible)
+            throw new Error("removedOnly cannot be used with requireVisible");
+
+        return opts;
     }
 
     static _getElementsMatchingSelectors(els, selectors)
@@ -178,7 +184,9 @@ class WaitForElements
         // Also dedupe elements here because the same element could have
         // been returned by multiple mutation types.
         return [ ... new Set(mutations.map(m => [
-            m.type === "childList" ? Array.from(m.addedNodes) : [],
+            m.type === "childList" ?
+                Array.from(this.options.removedOnly ? m.removedNodes : m.addedNodes) :
+                [],
             m.type === "attributes" ? m.target : [],
             m.type === "characterData" ? WaitForElements._getElementsFromElementToRoot(m.target.parentElement, this.options.target) : [],
         ]).flat(Infinity)) ];

@@ -183,6 +183,7 @@ describe("_normalizeOptions", function() {
                 allowMultipleMatches: false,
                 onlyOnce: false,
                 skipExisting: false,
+                removedOnly: false,
                 timeout: -1,
                 observerOptions: {
                     attributeOldValue: true,
@@ -207,6 +208,7 @@ describe("_normalizeOptions", function() {
                 allowMultipleMatches: false,
                 onlyOnce: false,
                 skipExisting: false,
+                removedOnly: false,
                 timeout: 4242,
                 observerOptions: {
                     attributeOldValue: true,
@@ -231,6 +233,7 @@ describe("_normalizeOptions", function() {
                 onlyOnce: false,
                 allowMultipleMatches: false,
                 skipExisting: false,
+                removedOnly: false,
                 timeout: 42,
                 observerOptions: {
                     attributeOldValue: true,
@@ -260,11 +263,19 @@ describe("_normalizeOptions", function() {
             allowMultipleMatches: false,
             onlyOnce: false,
             skipExisting: false,
+            removedOnly: false,
             timeout: -1,
             observerOptions: { subtree: false },
             requireVisible: false,
             verbose: true,
         });
+    });
+
+    it("throws when removedOnly is true with requireVisible", function() {
+        expect(() => WaitForElements._normalizeOptions({
+            removedOnly: true,
+            requireVisible: true,
+        })).toThrowError("removedOnly cannot be used with requireVisible");
     });
 
 
@@ -321,6 +332,7 @@ describe("constructor", function() {
                     allowMultipleMatches: false,
                     onlyOnce: false,
                     skipExisting: false,
+                    removedOnly: false,
                     timeout: -1,
                     observerOptions: {
                         attributeOldValue: true,
@@ -554,6 +566,20 @@ describe("_getElementsFromMutations", function() {
             .toEqual([newdiv]);
     });
 
+    it("childlist mutation uses removedNodes when removedOnly is true", function() {
+        let removed = document.createElement("div");
+        let added = document.createElement("div");
+        let waiter = new WaitForElements({ removedOnly: true });
+        let mut = {
+            type: "childList",
+            addedNodes: [ added ],
+            removedNodes: [ removed ],
+        };
+
+        expect(waiter._getElementsFromMutations([mut]))
+            .toEqual([removed]);
+    });
+
 
     it("attributes mutation", function() {
         let waiter = new WaitForElements();
@@ -597,6 +623,157 @@ describe("_getElementsFromMutations", function() {
         // doubled to verify de-deduping
         expect(waiter._getElementsFromMutations([mut, mut]))
             .toEqual([this._maindiv.querySelector("#span1"), div]);
+    });
+});
+
+
+describe("removedOnly", function() {
+
+    it("matches removed elements from childList mutations", function(done) {
+        this._maindiv.innerHTML = `<span class="gone" id="gone">gone</span>`;
+        let el = this._maindiv.querySelector("#gone");
+        let waiter = new WaitForElements({
+            target: this._maindiv,
+            selectors: [ ".gone" ],
+            removedOnly: true,
+            skipExisting: true,
+        });
+        let onMatchFn = jasmine.createSpy("onMatchFn", (els) => {
+            expect(els).toEqual([ el ]);
+            done();
+        }).and.callThrough();
+
+        waiter.match(onMatchFn);
+
+        window.setTimeout(() => {
+            el.remove();
+        }, 0);
+    });
+
+    it("ignores added elements", function(done) {
+        this._maindiv.innerHTML = "";
+        let waiter = new WaitForElements({
+            target: this._maindiv,
+            selectors: [ ".added" ],
+            removedOnly: true,
+            skipExisting: true,
+        });
+        let onMatchFn = jasmine.createSpy("onMatchFn");
+
+        waiter.match(onMatchFn);
+
+        window.setTimeout(() => {
+            let el = document.createElement("span");
+            el.className = "added";
+            this._maindiv.append(el);
+            window.setTimeout(() => {
+                expect(onMatchFn).not.toHaveBeenCalled();
+                waiter.stop();
+                done();
+            }, 0);
+        }, 0);
+    });
+
+    it("still matches attribute mutations", function(done) {
+        this._maindiv.innerHTML = `<span id="attr-target">x</span>`;
+        let el = this._maindiv.querySelector("#attr-target");
+        let waiter = new WaitForElements({
+            target: this._maindiv,
+            selectors: [ "[data-test]" ],
+            removedOnly: true,
+            skipExisting: true,
+        });
+        let onMatchFn = jasmine.createSpy("onMatchFn", (els) => {
+            expect(els).toEqual([ el ]);
+            done();
+        }).and.callThrough();
+
+        waiter.match(onMatchFn);
+
+        window.setTimeout(() => {
+            el.setAttribute("data-test", "1");
+        }, 0);
+    });
+
+    it("still matches characterData mutations", function(done) {
+        this._maindiv.innerHTML = `<span class="text" id="text-target">hello</span>`;
+        let el = this._maindiv.querySelector("#text-target");
+        let waiter = new WaitForElements({
+            target: this._maindiv,
+            selectors: [ ".text" ],
+            removedOnly: true,
+            skipExisting: true,
+        });
+        let onMatchFn = jasmine.createSpy("onMatchFn", (els) => {
+            expect(els).toEqual([ el ]);
+            done();
+        }).and.callThrough();
+
+        waiter.match(onMatchFn);
+
+        window.setTimeout(() => {
+            el.firstChild.nodeValue = "updated";
+        }, 0);
+    });
+
+    it("uses filter as a final gate for removals", function(done) {
+        this._maindiv.innerHTML = `
+        <span id="first">first</span>
+        <span id="second">second</span>
+        `;
+        let first = this._maindiv.querySelector("#first");
+        let second = this._maindiv.querySelector("#second");
+        let waiter = new WaitForElements({
+            target: this._maindiv,
+            selectors: [ "span" ],
+            removedOnly: true,
+            skipExisting: true,
+            filter: els => els.filter(el => el.id === "second"),
+        });
+        let onMatchFn = jasmine.createSpy("onMatchFn", (els) => {
+            expect(els).toEqual([ second ]);
+            done();
+        }).and.callThrough();
+
+        waiter.match(onMatchFn);
+
+        window.setTimeout(() => {
+            first.remove();
+            window.setTimeout(() => {
+                second.remove();
+            }, 0);
+        }, 0);
+    });
+
+    it("onlyOnce prevents re-emitting removed elements", function(done) {
+        this._maindiv.innerHTML = `<span id="once">once</span>`;
+        let el = this._maindiv.querySelector("#once");
+        let waiter = new WaitForElements({
+            target: this._maindiv,
+            selectors: [ "span" ],
+            removedOnly: true,
+            skipExisting: true,
+            allowMultipleMatches: true,
+            onlyOnce: true,
+        });
+        let onMatchFn = jasmine.createSpy("onMatchFn");
+
+        waiter.match(onMatchFn);
+
+        window.setTimeout(() => {
+            el.remove();
+            window.setTimeout(() => {
+                this._maindiv.append(el);
+                window.setTimeout(() => {
+                    el.remove();
+                    window.setTimeout(() => {
+                        expect(onMatchFn).toHaveBeenCalledTimes(1);
+                        waiter.stop();
+                        done();
+                    }, 0);
+                }, 0);
+            }, 0);
+        }, 0);
     });
 });
 
