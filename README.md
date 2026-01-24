@@ -111,3 +111,8 @@ Reference to a function that is called if `options.timeout` is reached before an
 ### _WaitForElements.stop()_
 
 Silently stop waiting for matches.  No callbacks are invoked.  Any outstanding promise will remain pending.
+
+
+## Sandbox
+
+There is a sandbox/index.html static file that can be used for in-browser experimentation with WaitForElements.
