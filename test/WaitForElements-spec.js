@@ -1753,6 +1753,41 @@ describe("match", function() {
         expect(spy_sm).toHaveBeenCalledWith(jasmine.any(Function), onTimeoutFn);
     });
 
+    it("propagates errors thrown by onMatch callback", function () {
+        this._maindiv.innerHTML = `<span id="span1">span1</span>`;
+        let waiter = new WaitForElements({
+            target: this._maindiv,
+            selectors: [ "span" ],
+            allowMultipleMatches: true,
+            skipExisting: false,
+        });
+
+        let onMatchFn = () => { throw new Error("onMatch boom"); };
+
+        expect(() => waiter.match(onMatchFn)).toThrowError("onMatch boom");
+    });
+
+    it("propagates errors thrown by onTimeout callback", function () {
+        jasmine.clock().install();
+        this._maindiv.innerHTML = `<span id="span1">span1</span>`;
+        let waiter = new WaitForElements({
+            target: this._maindiv,
+            selectors: [ "span" ],
+            allowMultipleMatches: true,
+            skipExisting: true,
+            timeout: 1000,
+        });
+
+        let onTimeoutFn = () => { throw new Error("onTimeout boom"); };
+
+        expect(() => {
+            waiter.match(() => undefined, onTimeoutFn);
+            jasmine.clock().tick(1000);
+        }).toThrowError("onTimeout boom");
+
+        jasmine.clock().uninstall();
+    });
+
     it("onlyOnce=true with allowMultipleMatches=true does not re-emit matches across mutations", function (done) {
         this._maindiv.innerHTML = `
         <span id=span1>span1</span>
