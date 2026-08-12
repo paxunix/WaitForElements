@@ -47,6 +47,14 @@ Default=`document.body`.  Target DOM element to watch, including its children.
 
 Default=`false`.  If true, elements currently in the DOM when `match()` is called will be ignored.  Mutations to those elements in the future can still return those elements.
 
+#### options.matchAllSelectors
+
+Default=`false`.  If true, matching requires at least one element for every selector in `options.selectors`.  Each time any selector has a match, the current DOM under `target` is checked for all selectors.  The promise resolves or `match()`'s `onMatchFn` is called only if the final filtered result still contains at least one element for every selector.
+
+This is a live DOM check, not accumulated history.  If an element matched one selector and is removed before the other selectors match, that removed element does not count.
+
+`matchAllSelectors` cannot be used with `removedOnly`.
+
 #### options.onlyOnce
 
 Default=false.  If a matched and filtered element has already been returned, do not return it again if it reappears in a DOM mutation.
@@ -89,7 +97,7 @@ Default=`false`.  Log diagnostic information to the console.  If you want the ac
 
 ### _WaitForElements.match(onMatchFn, onTimeoutFn)_
 
-Wait for DOM elements to exist for which particular constraints are true.  The mutation observer used will fire for added nodes, attribute changes, and text changes.  An intersection observer can be used to wait for the DOM elements to also become visible in the viewport.
+Wait for DOM elements to exist for which particular constraints are true.  By default, `options.selectors` is interpreted as an OR list: matching succeeds when at least one element matches any selector in the list.  If `options.matchAllSelectors` is true, `options.selectors` is interpreted as an AND list: matching succeeds only when the final filtered result contains at least one element for every selector in the list.  The mutation observer used will fire for added nodes, attribute changes, and text changes.  An intersection observer can be used to wait for the DOM elements to also become visible in the viewport.
 
 #### Return
 

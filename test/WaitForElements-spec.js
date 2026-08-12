@@ -194,6 +194,7 @@ describe("_normalizeOptions", function() {
                     subtree: true,
                 },
                 requireVisible: false,
+                matchAllSelectors: false,
                 verbose: false,
             });
     });
@@ -219,6 +220,7 @@ describe("_normalizeOptions", function() {
                     subtree: true,
                 },
                 requireVisible: false,
+                matchAllSelectors: false,
                 verbose: false,
             });
         });
@@ -244,6 +246,7 @@ describe("_normalizeOptions", function() {
                     subtree: true,
                 },
                 requireVisible: false,
+                matchAllSelectors: false,
                 verbose: false,
             });
         });
@@ -267,6 +270,7 @@ describe("_normalizeOptions", function() {
             timeout: -1,
             observerOptions: { subtree: false },
             requireVisible: false,
+            matchAllSelectors: false,
             verbose: true,
         });
     });
@@ -276,6 +280,13 @@ describe("_normalizeOptions", function() {
             removedOnly: true,
             requireVisible: true,
         })).toThrowError("removedOnly cannot be used with requireVisible");
+    });
+
+    it("throws when removedOnly is true with matchAllSelectors", function() {
+        expect(() => WaitForElements._normalizeOptions({
+            removedOnly: true,
+            matchAllSelectors: true,
+        })).toThrowError("removedOnly cannot be used with matchAllSelectors");
     });
 
 
@@ -343,6 +354,7 @@ describe("constructor", function() {
                         subtree: true,
                     },
                     requireVisible: false,
+                    matchAllSelectors: false,
                     verbose: false,
                 },
                 seen: jasmine.any(Map),
@@ -2358,6 +2370,250 @@ describe("match", function() {
     }); // exceeding timeout
 
 });     // match
+
+describe("matchAllSelectors", function() {
+
+    it("resolves when existing elements satisfy every selector", async function () {
+        this._maindiv.innerHTML = `
+        <span id="title" class="title">title</span>
+        <span id="price" class="price">price</span>
+        `;
+        let waiter = new WaitForElements({
+            target: this._maindiv,
+            selectors: [ ".title", ".price" ],
+            matchAllSelectors: true,
+        });
+
+        await expectAsync(waiter.match()).toBeResolvedTo([
+            this._maindiv.querySelector("#title"),
+            this._maindiv.querySelector("#price"),
+        ]);
+    });
+
+    it("does not use stale elements removed before all selectors match", function (done) {
+        let waiter = new WaitForElements({
+            target: this._maindiv,
+            selectors: [ ".title", ".price" ],
+            matchAllSelectors: true,
+            timeout: 200,
+        });
+        let onMatchFn = jasmine.createSpy("onMatchFn", (els) => {
+            expect(els).toEqual([
+                this._maindiv.querySelector("#second-title"),
+                this._maindiv.querySelector("#price"),
+            ]);
+            done();
+        }).and.callThrough();
+
+        waiter.match(onMatchFn, done.fail);
+
+        window.setTimeout(() => {
+            let firstTitle = document.createElement("span");
+            firstTitle.id = "first-title";
+            firstTitle.className = "title";
+            this._maindiv.append(firstTitle);
+            firstTitle.remove();
+
+            window.setTimeout(() => {
+                let price = document.createElement("span");
+                price.id = "price";
+                price.className = "price";
+                this._maindiv.append(price);
+
+                window.setTimeout(() => {
+                    expect(onMatchFn).not.toHaveBeenCalled();
+
+                    let secondTitle = document.createElement("span");
+                    secondTitle.id = "second-title";
+                    secondTitle.className = "title";
+                    this._maindiv.append(secondTitle);
+                }, 0);
+            }, 0);
+        }, 0);
+    });
+
+    it("continues waiting when filter removes coverage for one selector", function (done) {
+        this._maindiv.innerHTML = `
+        <span id="title" class="title">title</span>
+        <span id="bad-price" class="price">bad</span>
+        `;
+        let waiter = new WaitForElements({
+            target: this._maindiv,
+            selectors: [ ".title", ".price" ],
+            matchAllSelectors: true,
+            filter: els => els.filter(el => el.id !== "bad-price"),
+        });
+        let onMatchFn = jasmine.createSpy("onMatchFn", (els) => {
+            expect(els).toEqual([
+                this._maindiv.querySelector("#title"),
+                this._maindiv.querySelector("#good-price"),
+            ]);
+            done();
+        }).and.callThrough();
+
+        waiter.match(onMatchFn);
+
+        expect(onMatchFn).not.toHaveBeenCalled();
+
+        window.setTimeout(() => {
+            let price = document.createElement("span");
+            price.id = "good-price";
+            price.className = "price";
+            this._maindiv.append(price);
+        }, 0);
+    });
+
+    it("skipExisting=true requires each initially existing selector match to mutate before emitting", function (done) {
+        this._maindiv.innerHTML = `
+        <span id="title" class="title">title</span>
+        <span id="price" class="price">price</span>
+        `;
+        let title = this._maindiv.querySelector("#title");
+        let price = this._maindiv.querySelector("#price");
+        let waiter = new WaitForElements({
+            target: this._maindiv,
+            selectors: [ ".title", ".price" ],
+            matchAllSelectors: true,
+            skipExisting: true,
+        });
+        let onMatchFn = jasmine.createSpy("onMatchFn", (els) => {
+            expect(els).toEqual([ title, price ]);
+            done();
+        }).and.callThrough();
+
+        waiter.match(onMatchFn);
+
+        title.setAttribute("data-ready", "title");
+        window.setTimeout(() => {
+            expect(onMatchFn).not.toHaveBeenCalled();
+            price.setAttribute("data-ready", "price");
+        }, 0);
+    });
+
+    it("allowMultipleMatches=true emits complete selector sets more than once", function (done) {
+        this._maindiv.innerHTML = `
+        <span id="title" class="title">title</span>
+        <span id="price" class="price">price</span>
+        `;
+        let waiter = new WaitForElements({
+            target: this._maindiv,
+            selectors: [ ".title", ".price" ],
+            matchAllSelectors: true,
+            allowMultipleMatches: true,
+        });
+        let onMatchFn = jasmine.createSpy("onMatchFn", () => {
+            if (onMatchFn.calls.count() === 2)
+            {
+                expect(onMatchFn.calls.allArgs()).toEqual([
+                    [[
+                        this._maindiv.querySelector("#title"),
+                        this._maindiv.querySelector("#price"),
+                    ]],
+                    [[
+                        this._maindiv.querySelector("#title"),
+                        this._maindiv.querySelector("#price"),
+                    ]],
+                ]);
+                waiter.stop();
+                done();
+            }
+        }).and.callThrough();
+
+        waiter.match(onMatchFn);
+
+        window.setTimeout(() => {
+            this._maindiv.querySelector("#title").setAttribute("data-ready", "1");
+        }, 0);
+    });
+
+    it("onlyOnce=true does not mark partial selector matches as seen", function (done) {
+        let waiter = new WaitForElements({
+            target: this._maindiv,
+            selectors: [ ".title", ".price" ],
+            matchAllSelectors: true,
+            allowMultipleMatches: true,
+            onlyOnce: true,
+        });
+        let onMatchFn = jasmine.createSpy("onMatchFn", (els) => {
+            expect(els).toEqual([
+                this._maindiv.querySelector("#title"),
+                this._maindiv.querySelector("#price"),
+            ]);
+            waiter.stop();
+            done();
+        }).and.callThrough();
+
+        waiter.match(onMatchFn);
+
+        window.setTimeout(() => {
+            let title = document.createElement("span");
+            title.id = "title";
+            title.className = "title";
+            this._maindiv.append(title);
+
+            window.setTimeout(() => {
+                expect(onMatchFn).not.toHaveBeenCalled();
+                expect(waiter.seen.has(title)).toBeFalse();
+
+                let price = document.createElement("span");
+                price.id = "price";
+                price.className = "price";
+                this._maindiv.append(price);
+            }, 0);
+        }, 0);
+    });
+
+    it("rejects on timeout when only some selectors match", async function () {
+        this._maindiv.innerHTML = `<span id="title" class="title">title</span>`;
+        let waiter = new WaitForElements({
+            target: this._maindiv,
+            selectors: [ ".title", ".price" ],
+            matchAllSelectors: true,
+            timeout: 0,
+        });
+
+        await expectAsync(waiter.match())
+            .toBeRejectedWithError("Timeout 0 reached waiting for selectors");
+    });
+
+    it("requireVisible=true waits until every selector has a visible element", function (done) {
+        let originalIntersectionObserver = window.IntersectionObserver;
+        let observers = [];
+        function FakeIntersectionObserver(cb) {
+            this.cb = cb;
+            this.observe = (el) => { this.el = el; };
+            this.unobserve = () => undefined;
+            this.disconnect = () => undefined;
+            observers.push(this);
+        }
+        window.IntersectionObserver = FakeIntersectionObserver;
+
+        this._maindiv.innerHTML = `
+        <div id="title" class="title">title</div>
+        <div id="price" class="price">price</div>
+        `;
+        let title = this._maindiv.querySelector("#title");
+        let price = this._maindiv.querySelector("#price");
+        let waiter = new WaitForElements({
+            target: this._maindiv,
+            selectors: [ ".title", ".price" ],
+            matchAllSelectors: true,
+            requireVisible: true,
+        });
+        let onMatchFn = jasmine.createSpy("onMatchFn", (els) => {
+            expect(els).toEqual([ title, price ]);
+            window.IntersectionObserver = originalIntersectionObserver;
+            done();
+        }).and.callThrough();
+
+        waiter.match(onMatchFn);
+
+        observers.find(observer => observer.el === title).cb([{ isIntersecting: true }]);
+        expect(onMatchFn).not.toHaveBeenCalled();
+        observers.find(observer => observer.el === price).cb([{ isIntersecting: true }]);
+    });
+
+});
 
 describe("stop", function() {
     it("any observer and timer are destroyed", function () {

@@ -314,6 +314,7 @@
         </div>
         <div class="row">
           <label class="pill"><input id="allowMultipleMatches" type="checkbox" /> allowMultipleMatches</label>
+          <label class="pill"><input id="matchAllSelectors" type="checkbox" /> matchAllSelectors</label>
           <label class="pill"><input id="onlyOnce" type="checkbox" /> onlyOnce</label>
           <label class="pill"><input id="skipExisting" type="checkbox" /> skipExisting</label>
           <label class="pill"><input id="requireVisible" type="checkbox" /> requireVisible</label>
@@ -536,6 +537,7 @@
           target,
           timeout: Number($("timeout").value || -1),
           allowMultipleMatches: $("allowMultipleMatches").checked,
+          matchAllSelectors: $("matchAllSelectors").checked,
           onlyOnce: $("onlyOnce").checked,
           skipExisting: $("skipExisting").checked,
           requireVisible: $("requireVisible").checked,

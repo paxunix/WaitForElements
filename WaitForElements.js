@@ -2,7 +2,7 @@
 
 class WaitForElements
 {
-    static _version = "3.1.1";
+    static _version = "3.2.0";
 
     constructor(options)
     {
@@ -15,6 +15,9 @@ class WaitForElements
         this.intersectionObservers = new Map();
         this.pendingVisible = null;
         this.pendingVisibleScheduled = false;
+        this.visibleElements = new Set();
+        this.skippedExistingElements = new Set();
+        this.skipExistingEligibleElements = new Set();
         this.stopped = false;
     }
 
@@ -87,6 +90,7 @@ class WaitForElements
                 subtree: true,
             },
             requireVisible: false,
+            matchAllSelectors: false,
             verbose: false,
         };
 
@@ -94,6 +98,9 @@ class WaitForElements
 
         if (opts.removedOnly && opts.requireVisible)
             throw new Error("removedOnly cannot be used with requireVisible");
+
+        if (opts.removedOnly && opts.matchAllSelectors)
+            throw new Error("removedOnly cannot be used with matchAllSelectors");
 
         return opts;
     }
@@ -166,6 +173,134 @@ class WaitForElements
                 console.log("Found existing elements matching selectors:", els);
 
         return els;
+    }
+
+
+    _matchesAllSelectors(els)
+    {
+        "use strict";
+
+        let selectors = Array.isArray(this.options.selectors) ?
+            this.options.selectors :
+            [ this.options.selectors ];
+
+        if (selectors.length === 0)
+            return false;
+
+        return selectors.every(sel => els.some(el =>
+            el instanceof Element && el.matches(sel)));
+    }
+
+
+    _getMatchAllCandidates()
+    {
+        "use strict";
+
+        let els = this._getMatchingElements();
+
+        if (this.options.requireVisible)
+            els = els.filter(el => this.visibleElements.has(el));
+
+        if (this.options.skipExisting)
+        {
+            els = els.filter(el =>
+                !this.skippedExistingElements.has(el) ||
+                this.skipExistingEligibleElements.has(el));
+        }
+
+        return els;
+    }
+
+
+    _applyFiltersForMatchAll(els)
+    {
+        "use strict";
+
+        let newels = this.options.onlyOnce ?
+            els.filter(el => !this.seen.has(el)) :
+            els;
+
+        if (!this.options.filter)
+            return newels;
+
+        newels = this.options.filter(newels);
+
+        /* istanbul ignore next */
+        if (this.options.verbose)
+            console.log("Elements after applying filter:", newels);
+
+        return newels;
+    }
+
+
+    _markSeenElements(els)
+    {
+        "use strict";
+
+        if (!this.options.onlyOnce)
+            return;
+
+        for (let el of els)
+            this.seen.set(el, true);
+    }
+
+
+    _recordSkipExistingCandidates(els)
+    {
+        "use strict";
+
+        if (!this.options.skipExisting)
+            return;
+
+        for (let el of els)
+            if (this.skippedExistingElements.has(el))
+                this.skipExistingEligibleElements.add(el);
+    }
+
+
+    _observeVisibleCandidates(els, onMatchFn)
+    {
+        "use strict";
+
+        for (let el of els)
+        {
+            if (this.intersectionObservers.has(el))
+                continue;
+
+            this._waitForElementToIntersect(el, this.options, (element) => {
+                this.visibleElements.add(element);
+
+                if (this.options.matchAllSelectors)
+                    this._tryMatchAllSelectors(onMatchFn);
+                else
+                    this._queueVisibleMatch(element, onMatchFn);
+            });
+        }
+    }
+
+
+    _tryMatchAllSelectors(onMatchFn)
+    {
+        "use strict";
+
+        let filtered = this._applyFiltersForMatchAll(this._getMatchAllCandidates());
+
+        if (filtered.length === 0 || !this._matchesAllSelectors(filtered))
+        {
+            /* istanbul ignore next */
+            if (this.options.verbose == 2)
+                console.log("Not all selectors matched after filters");
+
+            return false;
+        }
+
+        this._markSeenElements(filtered);
+        onMatchFn(filtered);
+
+        if (!this.options.allowMultipleMatches)
+            this.stop();
+
+        return true;
     }
 
 
@@ -400,6 +535,7 @@ class WaitForElements
 
         this.pendingVisible = null;
         this.pendingVisibleScheduled = false;
+        this.visibleElements.clear();
     }
 
 
@@ -411,18 +547,23 @@ class WaitForElements
             let els = this._handleMutations(mutations);
             if (els.length === 0) return;
 
+            if (this.options.matchAllSelectors)
+            {
+                this._recordSkipExistingCandidates(els);
+
+                if (this.options.requireVisible)
+                    this._observeVisibleCandidates(this._getMatchingElements(), onMatchFn);
+                else
+                    this._tryMatchAllSelectors(onMatchFn);
+
+                return;
+            }
+
             if (this.options.requireVisible)
             {
                 // For each candidate, create a per-element
                 // IntersectionObserver and call onMatchFn when visible
-                for (let el of els)
-                {
-                    if (this.intersectionObservers.has(el))
-                        continue;
-
-                    this._waitForElementToIntersect(el, this.options,
-                        (element) => this._queueVisibleMatch(element, onMatchFn));
-                }
+                this._observeVisibleCandidates(els, onMatchFn);
             }
             else
             {
@@ -465,24 +606,29 @@ class WaitForElements
             console.log("Waiting for selectors:", this.options.selectors);
         }
 
+        if (this.options.matchAllSelectors && this.options.skipExisting)
+            this.skippedExistingElements = new Set(this._getMatchingElements());
+
         if (!this.options.removedOnly &&
             (!this.options.skipExisting || this.options.requireVisible))
         {
             let els = this._getMatchingElements();
             if (els.length > 0)
             {
+                if (this.options.matchAllSelectors)
+                {
+                    if (this.options.requireVisible)
+                        this._observeVisibleCandidates(els, onMatchFn);
+                    else if (this._tryMatchAllSelectors(onMatchFn) &&
+                        !this.options.allowMultipleMatches)
+                        return;
+                }
+                else
                 if (this.options.requireVisible)
                 {
                     // If elements already exist and requireVisible is true,
                     // wait per element.
-                    for (let el of els)
-                    {
-                        if (this.intersectionObservers.has(el))
-                            continue;
-
-                        this._waitForElementToIntersect(el, this.options,
-                            (element) => this._queueVisibleMatch(element, onMatchFn));
-                    }
+                    this._observeVisibleCandidates(els, onMatchFn);
                 }
                 else
                 {
