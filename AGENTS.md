@@ -42,6 +42,10 @@ This repository contains WaitForElements and its browser-based Jasmine test suit
 - Many tests use async DOM mutations; prefer deterministic hooks (e.g., fake IntersectionObserver) to avoid flake.
 - If you add tests that touch globals (e.g., `window.IntersectionObserver`, `jasmine.clock()`), restore/uninstall in the same spec.
 - if updating a test plan to indicate a test was implemented, remove it from the plan
+- When changing behavior, update `WaitForElements._version` in `WaitForElements.js` according to Semantic Versioning:
+  - patch for bug fixes
+  - minor for backward-compatible features
+  - major for breaking API or behavior changes
 
 ## Tips
 - Use `rg` for fast search.
